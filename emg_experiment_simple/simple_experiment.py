@@ -583,8 +583,8 @@ def main():
     run_experiment(
         data_sets,
         output_directory,
-        n_splits=8,  
-        n_repeats=1, 
+        n_splits=10,  
+        n_repeats=4, 
         random_state=0,
         n_jobs=-1,
         overwrite=True,
