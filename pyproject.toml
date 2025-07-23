@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emg_experiment_simple"
+dynamic = ["version", "readme"]
+dependencies = [
+    'scikit-learn>=1.6.0',
+    'xgboost>=3.0.2',
+    'results-storage @ git+https://github.com/ptrajdos/results_storge.git',
+    'dexterous_bioprosthesis_2021_raw_datasets @ git+https://github.com/ptrajdos/dexterous-bioprosthesis-2021-raw-dataset.git',
+    'matplotlib',
+    'pandas',
+    'tabulate==0.9.0',
+    'statsmodels==0.14.4',
+    'seaborn==0.13.2',
+
+]
+requires-python = ">=3.10"
+authors = [
+  {name = "Pawel Trajdos", email = "pawel.trajdos@pwr.edu.pl"},
+]
+maintainers = [
+  {name = "Pawel Trajdos", email = "pawel.trajdos@pwr.edu.pl"}
+]
+description = "Simple EMG experiment"
+
+license = "BSD-3-Clause"
+license-files = ["LICEN[CS]E.*"]
+keywords = ["emg"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "emg_experiment_simple.__version__"}  # any module attribute compatible with ast.literal_eval
+readme = {file = ["README.md"]}
+
+[project.urls]
+Repository = "https://github.com/ptrajdos/emg_experiment_simple.git"
+
+[tool.setuptools]
+packages = { find = { include = ["emg_experiment_simple", "emg_experiment_simple.*"] } }
+
+[project.scripts]
+experiment = "emg_experiment_simple.simple_experiment:main"
