@@ -561,8 +561,10 @@ def main():
     random.seed(0)
 
     data_path0B = os.path.join(settings.DATAPATH, "MK_10_03_2022_EMG")
+    data_path0C = os.path.join(settings.DATAPATH, "KrzysztofJ_all_EMG")
 
-    data_sets = [data_path0B]
+
+    data_sets = [data_path0B, data_path0C]
 
     output_directory = os.path.join(
         settings.EXPERIMENTS_RESULTS_PATH,

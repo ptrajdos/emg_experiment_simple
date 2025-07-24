@@ -46,3 +46,4 @@ packages = { find = { include = ["emg_experiment_simple", "emg_experiment_simple
 
 [project.scripts]
 experiment = "emg_experiment_simple.simple_experiment:main"
+feature_extraction = "emg_experiment_simple.extracted_features_saver:main"
