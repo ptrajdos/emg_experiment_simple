@@ -107,8 +107,16 @@ def main():
 
     data_path0B = os.path.join(settings.DATAPATH, "MK_10_03_2022_EMG")
     data_path0C = os.path.join(settings.DATAPATH, "KrzysztofJ_all_EMG")
+    data_path0D = os.path.join(settings.DATAPATH, "Andrzej_17_03_2022_EMG")
+    data_path0E = os.path.join(settings.DATAPATH, "Andrzej_24_04_2023-ALL_EMG")
+    data_path0F = os.path.join(settings.DATAPATH, "AW-13_03_2025")
+    data_path0G = os.path.join(settings.DATAPATH, "Andrzej_18_05_2023_EMG")
+    data_path0H = os.path.join(settings.DATAPATH, "AW-03_03_2025")
+    data_path0I = os.path.join(settings.DATAPATH, "Barbara_13_05_2022_AB")
+    
 
-    data_sets = [data_path0B, data_path0C]
+
+    data_sets = [data_path0B, data_path0C, data_path0D, data_path0E, data_path0F, data_path0G, data_path0H, data_path0I]
 
     output_directory = os.path.join(
         settings.EXPERIMENTS_RESULTS_PATH,
