@@ -572,6 +572,7 @@ def main():
 
 
     data_sets = [data_path0B, data_path0C, data_path0D, data_path0E, data_path0F, data_path0G, data_path0H, data_path0I]
+    # data_sets = [ os.path.join( settings.DATAPATH, "tsnre_windowed","A{}_Force_Exp_low_windowed".format(i)) for i in range(1,10) ]
 
     output_directory = os.path.join(
         settings.EXPERIMENTS_RESULTS_PATH,
