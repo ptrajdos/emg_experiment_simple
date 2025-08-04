@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import os
 import numpy as np
 import pandas as pd
@@ -27,7 +28,7 @@ import random
 
 from emg_experiment_simple import settings
 from emg_experiment_simple.tools import logger
-
+import logging
 
 def wavelet_extractor2(wavelet_level=2):
     extractor = SetCreatorDWT(
@@ -75,6 +76,9 @@ def run_experiment(
 
         set_name = os.path.basename(in_dir)
         
+        if not os.path.exists(in_dir):
+            logging.debug("Skipping {} !".format(set_name))
+            continue
 
         pre_set = read_signals_from_dirs(in_dir)
         raw_set = pre_set["accepted"]
@@ -116,8 +120,13 @@ def main():
     
 
 
-    data_sets = [data_path0B, data_path0C, data_path0D, data_path0E, data_path0F, data_path0G, data_path0H, data_path0I]
+    # data_sets = [data_path0B, data_path0C, data_path0D, data_path0E, data_path0F, data_path0G, data_path0H, data_path0I]
     # data_sets = [ os.path.join( settings.DATAPATH, "tsnre_windowed","A{}_Force_Exp_low_windowed".format(i)) for i in range(1,10) ]
+
+    subjects = list([*range(1,12)])
+    experiments = list([*range(1,4)])
+    labels = ['stimulus', 'restimulus']
+    data_sets = [ os.path.join( settings.DATAPATH, "db3",f"S{su}_E{ex}_A1_{la}") for su,ex,la in itertools.product(subjects,experiments,labels) ]
 
     output_directory = os.path.join(
         settings.EXPERIMENTS_RESULTS_PATH,
