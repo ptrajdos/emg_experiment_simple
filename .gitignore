@@ -168,3 +168,5 @@ prof/*
 visualizations_plots/*
 experiment_results/*
 data/*
+*.csv
+*.dat
