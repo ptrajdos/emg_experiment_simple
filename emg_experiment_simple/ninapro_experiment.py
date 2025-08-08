@@ -497,7 +497,7 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                     }
                 ].to_numpy()
 
-                plt.boxplot(sub_results.transpose())
+                plt.boxplot(sub_results.transpose(),showmeans=True)
                 plt.grid(True, linestyle="--", alpha=0.7)
                 plt.title(
                     "{}".format(
@@ -510,6 +510,30 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                 )
                 pdf.savefig()
                 plt.close()
+
+                means = np.mean(sub_results, axis=1)
+                stds = np.std(sub_results, axis=1)
+                medians = np.median(sub_results, axis=1)
+                q1 = np.quantile(sub_results, 0.25, axis=1)
+                q3 = np.quantile(sub_results, 0.75, axis=1)
+                iqr = q3 - q1
+
+                res_df = pd.DataFrame(
+                    {
+                        "mean": means,
+                        "std": stds,
+                        "median": medians,
+                        "q1": q1,
+                        "q3": q3,
+                        "iqr": iqr,
+                    },
+                    index=method_names,
+                )
+
+                print("Statistics:\n", file=report_file_handler)
+                res_df.to_markdown(report_file_handler)
+
+                print("\n", file=report_file_handler)
 
                 p_vals = np.zeros((n_methods, n_methods))
                 values = sub_results.transpose()
@@ -562,6 +586,8 @@ def main():
     experiments = list([*range(1, 4)])
     labels = ["stimulus", "restimulus"]
 
+    db_name = "db3"
+
     data_sets = []
     for experiment in experiments:
         for label in labels:
@@ -570,7 +596,7 @@ def main():
                     f"exp_{experiment}_{label}",
                     [
                         os.path.join(
-                            settings.DATAPATH, "db3", f"S{su}_E{experiment}_A1_{label}"
+                            settings.DATAPATH, db_name, f"S{su}_E{experiment}_A1_{label}"
                         )
                         for su in subjects
                     ],
@@ -579,7 +605,7 @@ def main():
 
     output_directory = os.path.join(
         settings.EXPERIMENTS_RESULTS_PATH,
-        "./ninapro_experiment/",
+        f"./ninapro_{db_name}_experiment/",
     )
     os.makedirs(output_directory, exist_ok=True)
 
@@ -593,16 +619,16 @@ def main():
     comment_str = """
     Simple experiment.
     """
-    run_experiment(
-        data_sets,
-        output_directory,
-        random_state=0,
-        n_jobs=-1,
-        overwrite=True,
-        n_channels=8,
-        progress_log_handler=progress_log_handler,
-        comment_str=comment_str,
-    )
+    # run_experiment(
+    #     data_sets,
+    #     output_directory,
+    #     random_state=0,
+    #     n_jobs=-1,
+    #     overwrite=True,
+    #     n_channels=8,
+    #     progress_log_handler=progress_log_handler,
+    #     comment_str=comment_str,
+    # )
 
     analysis_functions = [
         analyze_results,
