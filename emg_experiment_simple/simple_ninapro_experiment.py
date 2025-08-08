@@ -28,6 +28,7 @@ from sklearn.metrics import (
     make_scorer,
     precision_score,
     recall_score,
+    confusion_matrix
 )
 from statsmodels.stats.multitest import multipletests
 
@@ -494,6 +495,12 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                     report_df = pd.DataFrame(report).transpose()
                     report_df.to_markdown(report_file_handler)
                     print("\n", file=report_file_handler)
+                    print("Confusion Matrix:\n", file=report_file_handler)
+                    cm_df = pd.DataFrame(confusion_matrix(y_gt, y_pred))
+                    cm_df.to_markdown(report_file_handler)
+                    print("\n", file=report_file_handler)
+
+
 
         report_file_handler.close()
 
