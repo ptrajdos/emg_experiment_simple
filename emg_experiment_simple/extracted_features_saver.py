@@ -123,14 +123,15 @@ def main():
     # data_sets = [data_path0B, data_path0C, data_path0D, data_path0E, data_path0F, data_path0G, data_path0H, data_path0I]
     # data_sets = [ os.path.join( settings.DATAPATH, "tsnre_windowed","A{}_Force_Exp_low_windowed".format(i)) for i in range(1,10) ]
 
+    database_name = "db3"
     subjects = list([*range(1,12)])
     experiments = list([*range(1,4)])
     labels = ['stimulus', 'restimulus']
-    data_sets = [ os.path.join( settings.DATAPATH, "db3",f"S{su}_E{ex}_A1_{la}") for su,ex,la in itertools.product(subjects,experiments,labels) ]
+    data_sets = [ os.path.join( settings.DATAPATH, database_name,f"S{su}_E{ex}_A1_{la}") for su,ex,la in itertools.product(subjects,experiments,labels) ]
 
     output_directory = os.path.join(
         settings.EXPERIMENTS_RESULTS_PATH,
-        "./extracted_features/",
+        f"./extracted_features_{database_name}/",
     )
     os.makedirs(output_directory, exist_ok=True)
 
