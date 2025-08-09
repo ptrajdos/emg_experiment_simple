@@ -537,7 +537,7 @@ def main():
         random_state=0,
         n_jobs=-1,
         overwrite=True,
-        n_channels=8,
+        n_channels=12,
         progress_log_handler=progress_log_handler,
         comment_str=comment_str,
     )

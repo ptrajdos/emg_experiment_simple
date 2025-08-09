@@ -389,7 +389,6 @@ def run_experiment(
             extr_datasets_y.append(y)
             groups += [raw_set_idx] * len(y)
 
-        # TODO prepare skf and stacked data
         skf = LeaveOneGroupOut()
         X_all = np.vstack(extr_datasets_X)
         y_all = np.concatenate(extr_datasets_y)
@@ -625,7 +624,7 @@ def main():
         random_state=0,
         n_jobs=-1,
         overwrite=True,
-        n_channels=8,
+        n_channels=12,
         progress_log_handler=progress_log_handler,
         comment_str=comment_str,
     )

@@ -147,7 +147,7 @@ def main():
     run_experiment(
         data_sets,
         output_directory,
-        n_channels=8,
+        n_channels=12,
         progress_log_handler=progress_log_handler,
         comment_str=comment_str,
     )
