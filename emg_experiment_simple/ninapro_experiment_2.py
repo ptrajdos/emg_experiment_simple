@@ -468,22 +468,37 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
         cm_file_path = os.path.join(output_directory,f"{result_file_basename}_cm.md")
         
         with open(cm_file_path,"w") as cm_file_handler:
+            print("# Method specific analysis\n", file=cm_file_handler)
+            
+            overall_df = pd.DataFrame()
             for method_name, g in results_df.groupby(Dims.METHODS.value):
-                print(f"# {method_name}\n", file=cm_file_handler)
-                print(f"## Confusion matrix\n", file=cm_file_handler)
+                print(f"## {method_name}\n", file=cm_file_handler)
+                print(f"### Confusion matrix\n", file=cm_file_handler)
                 cm = confusion_matrix(g["y_test"], g["y_pred"])
-                cm_df = pd.DataFrame(cm)
+                u_labels = np.unique( np.hstack((g["y_test"],g["y_pred"])))
+                cm_df = pd.DataFrame(cm, index=u_labels, columns=u_labels)
                 cm_df.to_markdown(cm_file_handler)
                 print("\n", file=cm_file_handler)
 
-                print(f"## classification report\n", file=cm_file_handler)
+                print(f"### classification report\n", file=cm_file_handler)
                 cr_dict = classification_report(g["y_test"],g["y_pred"],output_dict=True)
                 cr_df = pd.DataFrame(cr_dict).transpose()
                 class_rows = cr_df.iloc[:-3]  # assumes last 3 rows are avg metrics
+
+                overall_df[f"{method_name}-f1"] = class_rows["f1-score"]
                 class_rows_sorted = class_rows.sort_values("f1-score", ascending=False)
                 
                 class_rows_sorted.to_markdown(cm_file_handler)
                 print("\n", file=cm_file_handler)
+
+            print("# Overall ranks", file=cm_file_handler)
+            ranked_df = rankdata(overall_df, axis=0, method="average")
+            av_ranks_df = pd.DataFrame(ranked_df.mean(axis=1),index=overall_df.index,columns=["avg-rank"])
+            av_ranks_sorted = av_ranks_df.sort_values("avg-rank",ascending=False)
+            av_ranks_sorted.to_markdown(cm_file_handler)
+            print("\n", file=cm_file_handler)
+            
+
 
 
 def main():
