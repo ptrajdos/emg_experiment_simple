@@ -81,6 +81,7 @@ from emg_experiment_simple import settings
 from emg_experiment_simple.tools import logger
 from emg_experiment_simple.xgb_classifier_label_enc import XGBClassifierWithLabelEncoder
 
+from matplotlib.backends.backend_pdf import PdfPages
 
 N_INTERNAL_SPLITS = 4
 
@@ -463,18 +464,20 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
         result_file_path = os.path.join(results_directory, result_file)
 
         results_df = pd.read_csv(result_file_path)
-        results_df.head(10)
 
         cm_file_path = os.path.join(output_directory,f"{result_file_basename}_cm.md")
+        cm_pdf_file_path = os.path.join(output_directory,f"{result_file_basename}_cm.pdf")
         
         with open(cm_file_path,"w") as cm_file_handler:
             print("# Method specific analysis\n", file=cm_file_handler)
             
             overall_df = pd.DataFrame()
+            overall_cm = list()
             for method_name, g in results_df.groupby(Dims.METHODS.value):
                 print(f"## {method_name}\n", file=cm_file_handler)
                 print(f"### Confusion matrix\n", file=cm_file_handler)
                 cm = confusion_matrix(g["y_test"], g["y_pred"])
+                overall_cm.append(cm)
                 u_labels = np.unique( np.hstack((g["y_test"],g["y_pred"])))
                 cm_df = pd.DataFrame(cm, index=u_labels, columns=u_labels)
                 cm_df.to_markdown(cm_file_handler)
@@ -490,6 +493,26 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                 
                 class_rows_sorted.to_markdown(cm_file_handler)
                 print("\n", file=cm_file_handler)
+
+            print("# Overall CM", file=cm_file_handler)
+            overall_cm = np.asanyarray(overall_cm)
+            overall_cm_sum = np.sum( overall_cm , axis=0)
+            overall_cm_sum_df = pd.DataFrame(overall_cm_sum, index=u_labels, columns=u_labels)
+            order = overall_cm_sum_df.values.diagonal().argsort()[::-1] # sort descending
+            overall_cm_sum_df_order = overall_cm_sum_df.iloc[order, :].iloc[:, order]
+            overall_cm_sum_df_order.to_markdown(cm_file_handler)
+            print("\n", file=cm_file_handler)
+
+            with PdfPages(cm_pdf_file_path) as pdf:
+                
+                sns.heatmap(overall_cm_sum_df_order, annot=True, fmt="d", cmap="Blues", cbar=True)
+                plt.title("Confusion Matrix (sorted by diagonal)")
+                plt.ylabel("True Label")
+                plt.xlabel("Predicted Label")
+                # Save as PDF
+                plt.tight_layout()
+                pdf.savefig()
+                plt.close()
 
             print("# Mean F1", file=cm_file_handler)
             mean_f1 = np.mean(overall_df,axis=1)
@@ -549,16 +572,16 @@ def main():
     comment_str = """
     Simple experiment.
     """
-    run_experiment(
-        data_sets,
-        output_directory,
-        random_state=0,
-        n_jobs=-1,
-        overwrite=True,
-        n_channels=12,
-        progress_log_handler=progress_log_handler,
-        comment_str=comment_str,
-    )
+    # run_experiment(
+    #     data_sets,
+    #     output_directory,
+    #     random_state=0,
+    #     n_jobs=-1,
+    #     overwrite=True,
+    #     n_channels=12,
+    #     progress_log_handler=progress_log_handler,
+    #     comment_str=comment_str,
+    # )
 
     analysis_functions = [
         analyze_results,
