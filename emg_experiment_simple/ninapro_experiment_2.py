@@ -494,18 +494,19 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                 class_rows_sorted.to_markdown(cm_file_handler)
                 print("\n", file=cm_file_handler)
 
-            print("# Overall CM", file=cm_file_handler)
-            overall_cm = np.asanyarray(overall_cm)
-            overall_cm_sum = np.sum( overall_cm , axis=0)
-            overall_cm_sum_df = pd.DataFrame(overall_cm_sum, index=u_labels, columns=u_labels)
-            order = overall_cm_sum_df.values.diagonal().argsort()[::-1] # sort descending
-            overall_cm_sum_df_order = overall_cm_sum_df.iloc[order, :].iloc[:, order]
-            overall_cm_sum_df_order.to_markdown(cm_file_handler)
-            print("\n", file=cm_file_handler)
-
-            labels_sorted = [u_labels[i] for i in order]
-
             with PdfPages(cm_pdf_file_path) as pdf:
+                print("# Overall CM", file=cm_file_handler)
+                overall_cm = np.asanyarray(overall_cm)
+                overall_cm_sum = np.sum( overall_cm , axis=0)
+                overall_cm_sum_df = pd.DataFrame(overall_cm_sum, index=u_labels, columns=u_labels)
+                order = overall_cm_sum_df.values.diagonal().argsort()[::-1] # sort descending
+                overall_cm_sum_df_order = overall_cm_sum_df.iloc[order, :].iloc[:, order]
+                overall_cm_sum_df_order.to_markdown(cm_file_handler)
+                print("\n", file=cm_file_handler)
+
+                labels_sorted = [u_labels[i] for i in order]
+
+            
                 
                 sns.heatmap(overall_cm_sum_df_order, annot=True, fmt="d", cmap="Blues", cbar=True)
                 plt.title("Confusion Matrix (sorted by diagonal)")
@@ -519,26 +520,34 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                 diagonal_vals = np.diag(overall_cm_sum_df_order.values)
                 plt.plot(range(1, len(diagonal_vals) + 1), diagonal_vals, marker='o')
                 plt.xticks(range(1, len(diagonal_vals) + 1), labels=overall_cm_sum_df_order.index)
-                # plt.xticklabels(overall_cm_sum_df_order.index, rotation=45)
                 plt.title("Scree Plot of Diagonal (Correct Counts)")
                 plt.xlabel("Class")
                 plt.ylabel("Correct Predictions")
                 pdf.savefig()
                 plt.close()
 
-            print("# Mean F1", file=cm_file_handler)
-            mean_f1 = np.mean(overall_df,axis=1)
-            mean_f1_df = pd.DataFrame(mean_f1,columns=["mean-f1"],index=overall_df.index)
-            mean_f1_df_sorted = mean_f1_df.sort_values("mean-f1", ascending=False)
-            mean_f1_df_sorted.to_markdown(cm_file_handler)
-            print("\n", file=cm_file_handler)
+                print("# Mean F1", file=cm_file_handler)
+                mean_f1 = np.mean(overall_df,axis=1)
+                mean_f1_df = pd.DataFrame(mean_f1,columns=["mean-f1"],index=overall_df.index)
+                mean_f1_df_sorted = mean_f1_df.sort_values("mean-f1", ascending=False)
+                mean_f1_df_sorted.to_markdown(cm_file_handler)
 
-            print("# Overall ranks", file=cm_file_handler)
-            ranked_df = rankdata(overall_df, axis=0, method="average")
-            av_ranks_df = pd.DataFrame(ranked_df.mean(axis=1),index=overall_df.index,columns=["avg-rank"])
-            av_ranks_sorted = av_ranks_df.sort_values("avg-rank",ascending=False)
-            av_ranks_sorted.to_markdown(cm_file_handler)
-            print("\n", file=cm_file_handler)
+                plt.plot(range(1, len(diagonal_vals) + 1), mean_f1_df_sorted["mean-f1"], marker='o')
+                plt.xticks(range(1, len(diagonal_vals) + 1), labels=overall_cm_sum_df_order.index)
+                plt.title("Scree Plot F1")
+                plt.xlabel("Class")
+                plt.ylabel("F1")
+                pdf.savefig()
+                plt.close()
+
+                print("\n", file=cm_file_handler)
+
+                print("# Overall ranks", file=cm_file_handler)
+                ranked_df = rankdata(overall_df, axis=0, method="average")
+                av_ranks_df = pd.DataFrame(ranked_df.mean(axis=1),index=overall_df.index,columns=["avg-rank"])
+                av_ranks_sorted = av_ranks_df.sort_values("avg-rank",ascending=False)
+                av_ranks_sorted.to_markdown(cm_file_handler)
+                print("\n", file=cm_file_handler)
             
 
 
