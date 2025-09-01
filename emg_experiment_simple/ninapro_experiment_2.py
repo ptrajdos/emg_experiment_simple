@@ -548,16 +548,16 @@ def main():
     comment_str = """
     Simple experiment.
     """
-    # run_experiment(
-    #     data_sets,
-    #     output_directory,
-    #     random_state=0,
-    #     n_jobs=-1,
-    #     overwrite=True,
-    #     n_channels=12,
-    #     progress_log_handler=progress_log_handler,
-    #     comment_str=comment_str,
-    # )
+    run_experiment(
+        data_sets,
+        output_directory,
+        random_state=0,
+        n_jobs=-1,
+        overwrite=True,
+        n_channels=12,
+        progress_log_handler=progress_log_handler,
+        comment_str=comment_str,
+    )
 
     analysis_functions = [
         analyze_results,
