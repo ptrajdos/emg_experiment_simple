@@ -540,6 +540,18 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                 pdf.savefig()
                 plt.close()
 
+                cumulative_sum_f1_sorted = np.cumsum(mean_f1_df_sorted["mean-f1"])
+                cum_counts = np.arange(1, len(u_labels)+1)
+                cumulative_mean_f1_sorted = cumulative_sum_f1_sorted/cum_counts
+
+                plt.plot(range(1, len(diagonal_vals) + 1), cumulative_mean_f1_sorted, marker='o')
+                plt.xticks(range(1, len(diagonal_vals) + 1), labels=overall_cm_sum_df_order.index)
+                plt.title("Scree Plot, Cumulative mean F1")
+                plt.xlabel("Class")
+                plt.ylabel("Cumulative mean F1")
+                pdf.savefig()
+                plt.close()
+
                 print("\n", file=cm_file_handler)
 
                 print("# Overall ranks", file=cm_file_handler)
