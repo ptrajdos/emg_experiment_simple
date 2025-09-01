@@ -491,6 +491,12 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                 class_rows_sorted.to_markdown(cm_file_handler)
                 print("\n", file=cm_file_handler)
 
+            print("# Mean F1", file=cm_file_handler)
+            mean_f1 = np.mean(overall_df,axis=1)
+            mean_f1_df = pd.DataFrame(mean_f1,columns=["mean-f1"],index=overall_df.index)
+            mean_f1_df_sorted = mean_f1_df.sort_values("mean-f1", ascending=False)
+            mean_f1_df_sorted.to_markdown(cm_file_handler)
+
             print("# Overall ranks", file=cm_file_handler)
             ranked_df = rankdata(overall_df, axis=0, method="average")
             av_ranks_df = pd.DataFrame(ranked_df.mean(axis=1),index=overall_df.index,columns=["avg-rank"])
@@ -542,16 +548,16 @@ def main():
     comment_str = """
     Simple experiment.
     """
-    run_experiment(
-        data_sets,
-        output_directory,
-        random_state=0,
-        n_jobs=-1,
-        overwrite=True,
-        n_channels=12,
-        progress_log_handler=progress_log_handler,
-        comment_str=comment_str,
-    )
+    # run_experiment(
+    #     data_sets,
+    #     output_directory,
+    #     random_state=0,
+    #     n_jobs=-1,
+    #     overwrite=True,
+    #     n_channels=12,
+    #     progress_log_handler=progress_log_handler,
+    #     comment_str=comment_str,
+    # )
 
     analysis_functions = [
         analyze_results,
