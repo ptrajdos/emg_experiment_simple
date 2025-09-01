@@ -503,6 +503,8 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
             overall_cm_sum_df_order.to_markdown(cm_file_handler)
             print("\n", file=cm_file_handler)
 
+            labels_sorted = [u_labels[i] for i in order]
+
             with PdfPages(cm_pdf_file_path) as pdf:
                 
                 sns.heatmap(overall_cm_sum_df_order, annot=True, fmt="d", cmap="Blues", cbar=True)
@@ -511,6 +513,16 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                 plt.xlabel("Predicted Label")
                 # Save as PDF
                 plt.tight_layout()
+                pdf.savefig()
+                plt.close()
+
+                diagonal_vals = np.diag(overall_cm_sum_df_order.values)
+                plt.plot(range(1, len(diagonal_vals) + 1), diagonal_vals, marker='o')
+                plt.xticks(range(1, len(diagonal_vals) + 1), labels=overall_cm_sum_df_order.index)
+                # plt.xticklabels(overall_cm_sum_df_order.index, rotation=45)
+                plt.title("Scree Plot of Diagonal (Correct Counts)")
+                plt.xlabel("Class")
+                plt.ylabel("Correct Predictions")
                 pdf.savefig()
                 plt.close()
 
