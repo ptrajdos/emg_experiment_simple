@@ -496,6 +496,7 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
             mean_f1_df = pd.DataFrame(mean_f1,columns=["mean-f1"],index=overall_df.index)
             mean_f1_df_sorted = mean_f1_df.sort_values("mean-f1", ascending=False)
             mean_f1_df_sorted.to_markdown(cm_file_handler)
+            print("\n", file=cm_file_handler)
 
             print("# Overall ranks", file=cm_file_handler)
             ranked_df = rankdata(overall_df, axis=0, method="average")
