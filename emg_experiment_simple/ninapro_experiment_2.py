@@ -6,7 +6,11 @@ import os
 import string
 import warnings
 
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_kurtosis import NpSignalExtractorKurtosis
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_skew import NpSignalExtractorSkew
 from results_storage.results_storage import ResultsStorage
+from sklearn.multiclass import OutputCodeClassifier
+from sklearn.pipeline import Pipeline
 from sklearn.tree import DecisionTreeClassifier
 
 from emg_experiment_simple.progressparallel import ProgressParallel
@@ -82,6 +86,7 @@ from emg_experiment_simple.tools import logger
 from emg_experiment_simple.xgb_classifier_label_enc import XGBClassifierWithLabelEncoder
 
 from matplotlib.backends.backend_pdf import PdfPages
+from imblearn.metrics import geometric_mean_score, specificity_score, sensitivity_score
 
 N_INTERNAL_SPLITS = 4
 
@@ -152,6 +157,8 @@ def wavelet_extractor2(wavelet_level=2):
         extractors=[
             NpSignalExtractorMav(),
             NpSignalExtractorSsc(),
+            NpSignalExtractorKurtosis(),
+            NpSignalExtractorSkew(),
         ],
     )
     return extractor
@@ -221,7 +228,7 @@ def generate_decision_tree():
 
 def generate_random_forest_t():
     classifier_dict = {
-        "classifier_object": RandomForestClassifier(n_estimators=20, random_state=0),
+        "classifier_object": RandomForestClassifier(n_estimators=100, random_state=0),
         "params": {
             "max_depth": [5],
             "min_samples_split": [2],
@@ -252,10 +259,10 @@ def generate_random_forest_t():
 def generate_xgboost_t():
     classifier_dict = {
         "classifier_object": XGBClassifierWithLabelEncoder(
-            n_estimators=20, random_state=0
+            n_estimators=100, random_state=0
         ),
         "params": {
-            "n_estimators": [20],
+            "n_estimators": [100],
             "max_depth": [3],
             "learning_rate": np.linspace(0.05, 0.2, 3),
             "subsample": np.linspace(0.4, 0.8, 3),
@@ -282,6 +289,77 @@ def generate_xgboost_t():
     )
     return clf
 
+def generate_ecoc_xgb_t():
+
+    params = {
+        "estimator__code_size": [2, 3],
+        "estimator__estimator__max_depth": [3],
+        "estimator__estimator__learning_rate": np.linspace(0.05, 0.2, 3),
+        "estimator__estimator__subsample": np.linspace(0.4, 0.8, 3),
+        "estimator__estimator__colsample_bytree": np.linspace(0.1, 0.3, 3),
+        "estimator__estimator__reg_alpha": [0.1],
+        "estimator__estimator__reg_lambda": [0.1],
+        "estimator__estimator__gamma": [0.05],
+    }
+
+    pipeline = Pipeline(
+        [
+            (
+                "estimator",
+                OutputCodeClassifier(
+                    estimator=XGBClassifierWithLabelEncoder(n_estimators=20, random_state=0), random_state=0
+                ),
+            )
+        ]
+    )
+    skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
+    bac_scorer = make_scorer(balanced_accuracy_score)
+    gs = GridSearchCV(
+        estimator=pipeline,
+        param_grid=params,
+        scoring=bac_scorer,
+        cv=skf,
+        return_train_score=True,
+        refit=True,
+        verbose=10,
+        error_score="raise",
+    )
+    return gs
+
+def generate_ecoc_rf_t():
+
+    params = {
+        "estimator__code_size": [2, 3, 4],
+        "estimator__estimator__max_depth": [5],
+        "estimator__estimator__min_samples_split": [2],
+        "estimator__estimator__min_samples_leaf": [1],
+        "estimator__estimator__max_features": [0.2],
+        "estimator__estimator__max_samples": [0.1, 0.2, 0.4],
+    }
+
+    pipeline = Pipeline(
+        [
+            (
+                "estimator",
+                OutputCodeClassifier(
+                    estimator=RandomForestClassifier(n_estimators=100, random_state=0), random_state=0
+                ),
+            )
+        ]
+    )
+    skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
+    bac_scorer = make_scorer(balanced_accuracy_score)
+    gs = GridSearchCV(
+        estimator=pipeline,
+        param_grid=params,
+        scoring=bac_scorer,
+        cv=skf,
+        return_train_score=True,
+        refit=True,
+        verbose=10,
+        error_score="raise",
+    )
+    return gs
 
 # TODO uncomment
 def generate_methods():
@@ -290,6 +368,8 @@ def generate_methods():
         "DT": generate_decision_tree(),
         "RF": generate_random_forest_t(),
         "XG": generate_xgboost_t(),
+        "ECOC-XG": generate_ecoc_xgb_t(),
+        "ECOC-RF": generate_ecoc_rf_t(),
     }
     return methods
 
@@ -465,44 +545,95 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
 
         results_df = pd.read_csv(result_file_path)
 
-        cm_file_path = os.path.join(output_directory,f"{result_file_basename}_cm.md")
-        cm_pdf_file_path = os.path.join(output_directory,f"{result_file_basename}_cm.pdf")
+        cm_file_path = os.path.join(output_directory,f"{result_file_basename}_all.md")
+        all_res_pdf_file_path = os.path.join(output_directory,f"{result_file_basename}_all.pdf")
+        method_spec_pdf_file_path = os.path.join(output_directory,f"{result_file_basename}_method.pdf")
         
-        with open(cm_file_path,"w") as cm_file_handler:
-            print("# Method specific analysis\n", file=cm_file_handler)
+        with open(cm_file_path,"w") as all_res_file_handler:
+            print("# Method specific analysis\n", file=all_res_file_handler)
             
             overall_df = pd.DataFrame()
             overall_cm = list()
-            for method_name, g in results_df.groupby(Dims.METHODS.value):
-                print(f"## {method_name}\n", file=cm_file_handler)
-                print(f"### Confusion matrix\n", file=cm_file_handler)
-                cm = confusion_matrix(g["y_test"], g["y_pred"])
-                overall_cm.append(cm)
-                u_labels = np.unique( np.hstack((g["y_test"],g["y_pred"])))
-                cm_df = pd.DataFrame(cm, index=u_labels, columns=u_labels)
-                cm_df.to_markdown(cm_file_handler)
-                print("\n", file=cm_file_handler)
+            with PdfPages(method_spec_pdf_file_path) as method_pdf:
+                for method_name, g in results_df.groupby(Dims.METHODS.value):
+                    print(f"## {method_name}\n", file=all_res_file_handler)
+                    print(f"### Confusion matrix\n", file=all_res_file_handler)
+                    cm = confusion_matrix(g["y_test"], g["y_pred"])
+                    overall_cm.append(cm)
+                    u_labels = np.unique( np.hstack((g["y_test"],g["y_pred"])))
+                    cm_df = pd.DataFrame(cm, index=u_labels, columns=u_labels)
+                    cm_df.to_markdown(all_res_file_handler)
+                    print("\n", file=all_res_file_handler)
 
-                print(f"### classification report\n", file=cm_file_handler)
-                cr_dict = classification_report(g["y_test"],g["y_pred"],output_dict=True)
-                cr_df = pd.DataFrame(cr_dict).transpose()
-                class_rows = cr_df.iloc[:-3]  # assumes last 3 rows are avg metrics
+                    print(f"### classification report\n", file=all_res_file_handler)
+                    cr_dict = classification_report(g["y_test"],g["y_pred"],output_dict=True)
+                    cr_df = pd.DataFrame(cr_dict).transpose()
+                    class_rows = cr_df.iloc[:-3]  # assumes last 3 rows are avg metrics
+                    
+                    class_specificity = specificity_score(g["y_test"],g["y_pred"], average=None)
+                    class_sensitivity = sensitivity_score(g["y_test"],g["y_pred"], average=None)
 
-                overall_df[f"{method_name}-f1"] = class_rows["f1-score"]
-                class_rows_sorted = class_rows.sort_values("f1-score", ascending=False)
-                
-                class_rows_sorted.to_markdown(cm_file_handler)
-                print("\n", file=cm_file_handler)
+                    class_gmean = geometric_mean_score(g["y_test"],g["y_pred"], average=None)
+                    class_rows["sensitivity"] = class_sensitivity
+                    class_rows["specificity"] = class_specificity
+                    class_rows["g-mean"] = class_gmean
+                    class_rows["f1-g"] = np.sqrt(class_gmean * class_rows["f1-score"])
 
-            with PdfPages(cm_pdf_file_path) as pdf:
-                print("# Overall CM", file=cm_file_handler)
+                    class_rows = class_rows[['precision', 'recall', 'sensitivity', 'specificity', 'f1-score','g-mean', 'f1-g' ,'support']]
+
+                    overall_df[f"{method_name}-f1"] = class_rows["f1-score"]
+
+                    crit_name = 'f1-score'
+                    class_rows_sorted = class_rows.sort_values(crit_name, ascending=False)
+                    class_rows_sorted.to_markdown(all_res_file_handler)
+                    print("\n", file=all_res_file_handler)
+                    #TODO visualization of f1 ang g-mean
+                    plt.plot(class_rows_sorted[crit_name],label=crit_name)
+                    plt.plot(class_rows_sorted['precision'],label='precision', alpha=0.3)
+                    plt.plot(class_rows_sorted['recall'],label='recall', alpha=0.3)
+                    plt.grid(True, color='grey', linestyle='--', linewidth=0.7, axis='both')
+                    plt.legend()
+                    plt.title(f"{method_name}, {crit_name}")
+                    plt.xlabel("Label")
+                    plt.ylabel('Criterion value')
+                    method_pdf.savefig()
+                    plt.close()
+
+                    crit_name = 'g-mean'
+                    plt.plot(class_rows_sorted[crit_name],label=crit_name)
+                    plt.plot(class_rows_sorted['sensitivity'],label='sensitivity', alpha=0.3)
+                    plt.plot(class_rows_sorted['specificity'],label='specificity', alpha=0.3)
+                    plt.grid(True, color='grey', linestyle='--', linewidth=0.7, axis='both')
+                    plt.legend()
+                    plt.title(f"{method_name}, {crit_name}")
+                    plt.xlabel("Label")
+                    plt.ylabel('Criterion value')
+                    method_pdf.savefig()
+                    plt.close()
+
+                    crit_name = 'f1-g'
+                    plt.plot(class_rows_sorted[crit_name],label=crit_name)
+                    plt.grid(True, color='grey', linestyle='--', linewidth=0.7, axis='both')
+                    plt.legend()
+                    plt.title(f"{method_name}, {crit_name}")
+                    plt.xlabel("Label")
+                    plt.ylabel('Criterion value')
+                    method_pdf.savefig()
+                    plt.close()
+
+                    
+
+                    
+
+            with PdfPages(all_res_pdf_file_path) as pdf:
+                print("# Overall CM", file=all_res_file_handler)
                 overall_cm = np.asanyarray(overall_cm)
                 overall_cm_sum = np.sum( overall_cm , axis=0)
                 overall_cm_sum_df = pd.DataFrame(overall_cm_sum, index=u_labels, columns=u_labels)
                 order = overall_cm_sum_df.values.diagonal().argsort()[::-1] # sort descending
                 overall_cm_sum_df_order = overall_cm_sum_df.iloc[order, :].iloc[:, order]
-                overall_cm_sum_df_order.to_markdown(cm_file_handler)
-                print("\n", file=cm_file_handler)
+                overall_cm_sum_df_order.to_markdown(all_res_file_handler)
+                print("\n", file=all_res_file_handler)
 
                 labels_sorted = [u_labels[i] for i in order]
 
@@ -526,11 +657,11 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                 pdf.savefig()
                 plt.close()
 
-                print("# Mean F1", file=cm_file_handler)
+                print("# Mean F1", file=all_res_file_handler)
                 mean_f1 = np.mean(overall_df,axis=1)
                 mean_f1_df = pd.DataFrame(mean_f1,columns=["mean-f1"],index=overall_df.index)
                 mean_f1_df_sorted = mean_f1_df.sort_values("mean-f1", ascending=False)
-                mean_f1_df_sorted.to_markdown(cm_file_handler)
+                mean_f1_df_sorted.to_markdown(all_res_file_handler)
 
                 plt.plot(range(1, len(diagonal_vals) + 1), mean_f1_df_sorted["mean-f1"], marker='o')
                 plt.xticks(range(1, len(diagonal_vals) + 1), labels=overall_cm_sum_df_order.index)
@@ -552,14 +683,14 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                 pdf.savefig()
                 plt.close()
 
-                print("\n", file=cm_file_handler)
+                print("\n", file=all_res_file_handler)
 
-                print("# Overall ranks", file=cm_file_handler)
+                print("# Overall ranks", file=all_res_file_handler)
                 ranked_df = rankdata(overall_df, axis=0, method="average")
                 av_ranks_df = pd.DataFrame(ranked_df.mean(axis=1),index=overall_df.index,columns=["avg-rank"])
                 av_ranks_sorted = av_ranks_df.sort_values("avg-rank",ascending=False)
-                av_ranks_sorted.to_markdown(cm_file_handler)
-                print("\n", file=cm_file_handler)
+                av_ranks_sorted.to_markdown(all_res_file_handler)
+                print("\n", file=all_res_file_handler)
             
 
 
@@ -605,16 +736,16 @@ def main():
     comment_str = """
     Simple experiment.
     """
-    # run_experiment(
-    #     data_sets,
-    #     output_directory,
-    #     random_state=0,
-    #     n_jobs=-1,
-    #     overwrite=True,
-    #     n_channels=12,
-    #     progress_log_handler=progress_log_handler,
-    #     comment_str=comment_str,
-    # )
+    run_experiment(
+        data_sets,
+        output_directory,
+        random_state=0,
+        n_jobs=-1,
+        overwrite=True,
+        n_channels=12,
+        progress_log_handler=progress_log_handler,
+        comment_str=comment_str,
+    )
 
     analysis_functions = [
         analyze_results,
