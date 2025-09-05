@@ -166,7 +166,7 @@ cython_debug/
 
 prof/*
 visualizations_plots/*
-experiment_results/*
+experiments_results/*
 data/*
 *.csv
 *.dat
