@@ -985,7 +985,7 @@ def main():
         data_sets,
         output_directory,
         random_state=0,
-        n_jobs=None,
+        n_jobs=-1,
         overwrite=True,
         n_channels=12,
         progress_log_handler=progress_log_handler,
