@@ -248,7 +248,7 @@ def generate_random_forest_t():
     classifier_params = classifier_dict["params"]
 
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score_m)
+    bac_scorer = make_scorer(kappa_m)
     clf = GridSearchCV(
         classifier_object,
         classifier_params,
@@ -273,7 +273,7 @@ def generate_knn_t():
     classifier_params = classifier_dict["params"]
 
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score_m)
+    bac_scorer = make_scorer(kappa_m)
     clf = GridSearchCV(
         classifier_object,
         classifier_params,
@@ -298,7 +298,7 @@ def generate_SVC_linear_t():
     classifier_params = classifier_dict["params"]
 
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score_m)
+    bac_scorer = make_scorer(kappa_m)
     clf = GridSearchCV(
         classifier_object,
         classifier_params,
@@ -324,7 +324,7 @@ def generate_SVC_rbf_t():
     classifier_params = classifier_dict["params"]
 
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score_m)
+    bac_scorer = make_scorer(kappa_m)
     clf = GridSearchCV(
         classifier_object,
         classifier_params,
@@ -357,7 +357,7 @@ def generate_xgboost_t():
     classifier_params = classifier_dict["params"]
 
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score_m)
+    bac_scorer = make_scorer(kappa_m)
     clf = GridSearchCV(
         classifier_object,
         classifier_params,
@@ -398,7 +398,7 @@ def generate_ecoc_xgb_t():
         ]
     )
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score_m)
+    bac_scorer = make_scorer(kappa_m)
     gs = GridSearchCV(
         estimator=pipeline,
         param_grid=params,
@@ -435,7 +435,7 @@ def generate_ecoc_rf_t():
         ]
     )
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score_m)
+    bac_scorer = make_scorer(kappa_m)
     gs = GridSearchCV(
         estimator=pipeline,
         param_grid=params,
