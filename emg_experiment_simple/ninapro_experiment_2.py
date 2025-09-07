@@ -14,7 +14,9 @@ from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors
 )
 from results_storage.results_storage import ResultsStorage
 from sklearn.multiclass import OutputCodeClassifier
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
 from emg_experiment_simple.progressparallel import ProgressParallel
@@ -91,9 +93,6 @@ from emg_experiment_simple.xgb_classifier_label_enc import XGBClassifierWithLabe
 
 from matplotlib.backends.backend_pdf import PdfPages
 from imblearn.metrics import geometric_mean_score, specificity_score, sensitivity_score
-
-N_INTERNAL_SPLITS = 4
-
 
 class PlotConfigurer:
 
@@ -219,7 +218,7 @@ def generate_metrics():
     return metrics
 
 
-NUM_INNER_CV = 4
+NUM_INNER_CV = 5
 
 
 def generate_naive_bayes():
@@ -234,11 +233,11 @@ def generate_random_forest_t():
     classifier_dict = {
         "classifier_object": RandomForestClassifier(n_estimators=100, random_state=0),
         "params": {
-            "max_depth": [5],
-            "min_samples_split": [2],
-            "min_samples_leaf": [1],
-            "max_features": [0.2],
-            "max_samples": [0.1, 0.2, 0.4],
+            "max_depth": [3,5,10,None],
+            "min_samples_split": [2,5,10],
+            "min_samples_leaf": [1,2,4],
+            "max_features": ['sqrt', 'log2',None],
+            "max_samples": [0.1, 0.2, 0.4,0.5,None],
         },
     }
 
@@ -246,7 +245,7 @@ def generate_random_forest_t():
     classifier_params = classifier_dict["params"]
 
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(balanced_accuracy_score)
+    bac_scorer = make_scorer(geometric_mean_score)
     clf = GridSearchCV(
         classifier_object,
         classifier_params,
@@ -259,6 +258,81 @@ def generate_random_forest_t():
     )
     return clf
 
+def generate_knn_t():
+    classifier_dict = {
+        "classifier_object": KNeighborsClassifier(),
+        "params": {
+            "n_neighbors": list(range(1,27,2)),
+        },
+    }
+
+    classifier_object = classifier_dict["classifier_object"]
+    classifier_params = classifier_dict["params"]
+
+    skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
+    bac_scorer = make_scorer(geometric_mean_score)
+    clf = GridSearchCV(
+        classifier_object,
+        classifier_params,
+        cv=skf,
+        scoring=bac_scorer,
+        return_train_score=True,
+        refit=True,
+        verbose=10,
+        error_score="raise",
+    )
+    return clf
+
+def generate_SVC_linear_t():
+    classifier_dict = {
+        "classifier_object": SVC(kernel="linear", random_state=0, decision_function_shape="ovo"),
+        "params": {
+            "C": [0.001, 0.01, 0.1, 1, 10, 100],
+        },
+    }
+
+    classifier_object = classifier_dict["classifier_object"]
+    classifier_params = classifier_dict["params"]
+
+    skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
+    bac_scorer = make_scorer(geometric_mean_score)
+    clf = GridSearchCV(
+        classifier_object,
+        classifier_params,
+        cv=skf,
+        scoring=bac_scorer,
+        return_train_score=True,
+        refit=True,
+        verbose=10,
+        error_score="raise",
+    )
+    return clf
+
+def generate_SVC_rbf_t():
+    classifier_dict = {
+        "classifier_object": SVC(kernel="rbf", random_state=0, decision_function_shape="ovo"),
+        "params": {
+            "C": [0.001, 0.01, 0.1, 1, 10, 100],
+            "gamma": ['scale', 'auto', 0.001, 0.01, 0.1, 1, 10, 100]
+        },
+    }
+
+    classifier_object = classifier_dict["classifier_object"]
+    classifier_params = classifier_dict["params"]
+
+    skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
+    bac_scorer = make_scorer(geometric_mean_score)
+    clf = GridSearchCV(
+        classifier_object,
+        classifier_params,
+        cv=skf,
+        scoring=bac_scorer,
+        return_train_score=True,
+        refit=True,
+        verbose=10,
+        error_score="raise",
+    )
+    return clf
 
 def generate_xgboost_t():
     classifier_dict = {
@@ -267,8 +341,8 @@ def generate_xgboost_t():
         ),
         "params": {
             "n_estimators": [100],
-            "max_depth": [3],
-            "learning_rate": np.linspace(0.05, 0.2, 3),
+            "max_depth": [3,5,None],
+            "learning_rate": np.linspace(0.05, 0.5, 5),
             "subsample": np.linspace(0.4, 0.8, 3),
             "colsample_bytree": np.linspace(0.1, 0.3, 3),
             "reg_alpha": [0.1],
@@ -280,7 +354,7 @@ def generate_xgboost_t():
     classifier_params = classifier_dict["params"]
 
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(balanced_accuracy_score)
+    bac_scorer = make_scorer(geometric_mean_score)
     clf = GridSearchCV(
         classifier_object,
         classifier_params,
@@ -298,7 +372,7 @@ def generate_ecoc_xgb_t():
 
     params = {
         "estimator__code_size": [2, 3],
-        "estimator__estimator__max_depth": [3],
+        "estimator__estimator__max_depth": [3,5,None],
         "estimator__estimator__learning_rate": np.linspace(0.05, 0.2, 3),
         "estimator__estimator__subsample": np.linspace(0.4, 0.8, 3),
         "estimator__estimator__colsample_bytree": np.linspace(0.1, 0.3, 3),
@@ -321,7 +395,7 @@ def generate_ecoc_xgb_t():
         ]
     )
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(balanced_accuracy_score)
+    bac_scorer = make_scorer(geometric_mean_score)
     gs = GridSearchCV(
         estimator=pipeline,
         param_grid=params,
@@ -338,12 +412,12 @@ def generate_ecoc_xgb_t():
 def generate_ecoc_rf_t():
 
     params = {
-        "estimator__code_size": [2, 3, 4],
-        "estimator__estimator__max_depth": [5],
-        "estimator__estimator__min_samples_split": [2],
-        "estimator__estimator__min_samples_leaf": [1],
-        "estimator__estimator__max_features": [0.2],
-        "estimator__estimator__max_samples": [0.1, 0.2, 0.4],
+        "estimator__code_size": [2, 3],
+        "estimator__estimator__max_depth": [3,5,10,None],
+        "estimator__estimator__min_samples_split": [2,5,10],
+        "estimator__estimator__min_samples_leaf": [1,2,4],
+        "estimator__estimator__max_features": ['sqrt', 'log2',None],
+        "estimator__estimator__max_samples": [0.1, 0.2, 0.4,0.5,None],
     }
 
     pipeline = Pipeline(
@@ -358,7 +432,7 @@ def generate_ecoc_rf_t():
         ]
     )
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(balanced_accuracy_score)
+    bac_scorer = make_scorer(geometric_mean_score)
     gs = GridSearchCV(
         estimator=pipeline,
         param_grid=params,
@@ -381,6 +455,9 @@ def generate_methods():
         "XG": generate_xgboost_t(),
         "ECOC-XG": generate_ecoc_xgb_t(),
         "ECOC-RF": generate_ecoc_rf_t(),
+        "KNN": generate_knn_t(),
+        "SVC-linear": generate_SVC_linear_t(),
+        "SVC-rbf": generate_SVC_rbf_t(),
     }
     return methods
 
