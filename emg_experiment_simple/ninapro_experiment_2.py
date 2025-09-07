@@ -207,6 +207,9 @@ def precision_score_m(y_true, y_pred, labels=None, average=None, zero_division=N
 def recall_score_m(y_true, y_pred, labels=None, average=None, zero_division=None):
     return recall_score(y_true, y_pred, average="micro")
 
+def geometric_mean_score_m(y_true, y_pred):
+    return geometric_mean_score(y_true, y_pred, average="micro", pos_label=None)
+
 
 def generate_metrics():
     metrics = {
@@ -245,7 +248,7 @@ def generate_random_forest_t():
     classifier_params = classifier_dict["params"]
 
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score)
+    bac_scorer = make_scorer(geometric_mean_score_m)
     clf = GridSearchCV(
         classifier_object,
         classifier_params,
@@ -270,7 +273,7 @@ def generate_knn_t():
     classifier_params = classifier_dict["params"]
 
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score)
+    bac_scorer = make_scorer(geometric_mean_score_m)
     clf = GridSearchCV(
         classifier_object,
         classifier_params,
@@ -295,7 +298,7 @@ def generate_SVC_linear_t():
     classifier_params = classifier_dict["params"]
 
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score)
+    bac_scorer = make_scorer(geometric_mean_score_m)
     clf = GridSearchCV(
         classifier_object,
         classifier_params,
@@ -321,7 +324,7 @@ def generate_SVC_rbf_t():
     classifier_params = classifier_dict["params"]
 
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score)
+    bac_scorer = make_scorer(geometric_mean_score_m)
     clf = GridSearchCV(
         classifier_object,
         classifier_params,
@@ -354,7 +357,7 @@ def generate_xgboost_t():
     classifier_params = classifier_dict["params"]
 
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score)
+    bac_scorer = make_scorer(geometric_mean_score_m)
     clf = GridSearchCV(
         classifier_object,
         classifier_params,
@@ -395,7 +398,7 @@ def generate_ecoc_xgb_t():
         ]
     )
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score)
+    bac_scorer = make_scorer(geometric_mean_score_m)
     gs = GridSearchCV(
         estimator=pipeline,
         param_grid=params,
@@ -432,7 +435,7 @@ def generate_ecoc_rf_t():
         ]
     )
     skf = RepeatedStratifiedKFold(n_splits=NUM_INNER_CV, n_repeats=1, random_state=0)
-    bac_scorer = make_scorer(geometric_mean_score)
+    bac_scorer = make_scorer(geometric_mean_score_m)
     gs = GridSearchCV(
         estimator=pipeline,
         param_grid=params,
@@ -978,16 +981,16 @@ def main():
     comment_str = """
     Simple experiment.
     """
-    # run_experiment(
-    #     data_sets,
-    #     output_directory,
-    #     random_state=0,
-    #     n_jobs=-1,
-    #     overwrite=True,
-    #     n_channels=12,
-    #     progress_log_handler=progress_log_handler,
-    #     comment_str=comment_str,
-    # )
+    run_experiment(
+        data_sets,
+        output_directory,
+        random_state=0,
+        n_jobs=None,
+        overwrite=True,
+        n_channels=12,
+        progress_log_handler=progress_log_handler,
+        comment_str=comment_str,
+    )
 
     analysis_functions = [
         analyze_results,
