@@ -34,6 +34,10 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python"
 ]
+[project.optional-dependencies]
+intelex = [
+    "scikit-learn-intelex>=2023.0.0"
+]
 
 [tool.setuptools.dynamic]
 version = {attr = "emg_experiment_simple.__version__"}  # any module attribute compatible with ast.literal_eval

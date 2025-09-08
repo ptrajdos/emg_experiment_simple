@@ -456,8 +456,8 @@ def generate_methods():
         "DT": generate_decision_tree(),
         "RF": generate_random_forest_t(),
         "XG": generate_xgboost_t(),
-        "ECOC-XG": generate_ecoc_xgb_t(),
-        "ECOC-RF": generate_ecoc_rf_t(),
+        # "ECOC-XG": generate_ecoc_xgb_t(),
+        # "ECOC-RF": generate_ecoc_rf_t(),
         "KNN": generate_knn_t(),
         "SVC-linear": generate_SVC_linear_t(),
         "SVC-rbf": generate_SVC_rbf_t(),
@@ -942,7 +942,7 @@ def main():
     np.random.seed(0)
     random.seed(0)
 
-    subjects = list([*range(1, 12)])
+    subjects = list([*range(1, 41)]) #ATTENTION
     experiments = list([*range(1, 4)])
     labels = ["stimulus", "restimulus"]
 
