@@ -67,6 +67,7 @@ from sklearn.model_selection import (
 )
 from dexterous_bioprosthesis_2021_raw_datasets.raw_signals.raw_signals_io import (
     read_signals_from_dirs,
+    read_signals_from_archive,
 )
 
 
@@ -459,8 +460,8 @@ def generate_methods():
         # "ECOC-XG": generate_ecoc_xgb_t(),
         # "ECOC-RF": generate_ecoc_rf_t(),
         "KNN": generate_knn_t(),
-        "SVC-linear": generate_SVC_linear_t(),
-        "SVC-rbf": generate_SVC_rbf_t(),
+        # "SVC-linear": generate_SVC_linear_t(),
+        # "SVC-rbf": generate_SVC_rbf_t(),
     }
     return methods
 
@@ -506,7 +507,7 @@ def run_experiment(
     methods = generate_methods()
     n_methods = len(methods)
 
-    for experiment_name, input_data_dir_list in datasets:
+    for experiment_name, archive_path,  input_data_regexes in datasets:
 
         logging.debug(f"Experiment: {experiment_name}")
 
@@ -520,11 +521,12 @@ def run_experiment(
             continue
 
         logging.debug(f"Loading data for experiment {experiment_name}")
-        raw_datasets = [
-            read_signals_from_dirs(in_dir)["accepted"]
-            for in_dir in input_data_dir_list
-            if os.path.exists(in_dir)
-        ]
+        raw_datasets = list()
+        for input_regex in input_data_regexes:
+            raw_data = read_signals_from_archive(archive_path, filter_regex=input_regex)["accepted"]
+            if len(raw_data) > 0:
+                raw_datasets.append(raw_data)
+            
         n_raw_datasets = len(raw_datasets)
         logging.debug(
             f"Loaded {n_raw_datasets} datasets for experiment {experiment_name}"
@@ -947,6 +949,7 @@ def main():
     labels = ["stimulus", "restimulus"]
 
     db_name = "db3"
+    db_archive_path = os.path.join(settings.DATAPATH, f"{db_name}.zip") 
 
     data_sets = []
     for experiment in experiments:
@@ -954,12 +957,9 @@ def main():
             data_sets.append(
                 (
                     f"exp_{experiment}_{label}",
+                    db_archive_path,
                     [
-                        os.path.join(
-                            settings.DATAPATH,
-                            db_name,
-                            f"S{su}_E{experiment}_A1_{label}",
-                        )
+                        f".*/S{su}_E{experiment}_A1_{label}/.*"
                         for su in subjects
                     ],
                 )

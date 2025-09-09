@@ -6,4 +6,6 @@ TODO:
     - [x] Average Confusion matrices over classifiers 
         - [x] CM
         - [x] Row-column sorting
+    - [x] Reading datasets from zip files
+    - [] Select class subsets
 
