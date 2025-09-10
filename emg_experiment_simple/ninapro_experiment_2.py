@@ -964,9 +964,9 @@ def main():
     subjects = list([*range(1, 41)]) #ATTENTION
     experiments = list([*range(1, 4)])
     selected_classes_list = [ #ATTENTION change if needed
-        None, 
-        None, 
-        None
+        ["9","13","16","6","1","14","7"],
+        ["39","36","34","40"], 
+        ["48","46"]
     ]
     labels = ["stimulus", "restimulus"]
 
