@@ -266,7 +266,7 @@ def generate_knn_t():
     classifier_dict = {
         "classifier_object": KNeighborsClassifier(),
         "params": {
-            "n_neighbors": list(range(1,27,2)),
+            "n_neighbors": list(range(1,27,2)),# ATTENTION to 27
         },
     }
 
@@ -507,7 +507,7 @@ def run_experiment(
     methods = generate_methods()
     n_methods = len(methods)
 
-    for experiment_name, archive_path,  input_data_regexes in datasets:
+    for experiment_name, archive_path, selected_classes, input_data_regexes in datasets:
 
         logging.debug(f"Experiment: {experiment_name}")
 
@@ -535,7 +535,7 @@ def run_experiment(
             logging.warning(f"No data for experiment {experiment_name}")
             continue
 
-        logging.debug("Filtering")
+        logging.debug("Filtering channels")
         if n_channels is not None:
             for raw_set_idx, raw_set in enumerate(raw_datasets):
                 n_set_channels = raw_set[0].to_numpy().shape[1]
@@ -544,7 +544,24 @@ def run_experiment(
                 filter = RawSignalsFilterChannelIdx(indices)
                 raw_datasets[raw_set_idx] = filter.fit_transform(raw_set)
 
-        logging.debug("Filtering done")
+        logging.debug("Filtering channels done")
+
+        if selected_classes is not None:
+            logging.debug("Selecting classes: {}".format(selected_classes))
+            for raw_set_idx, raw_set in enumerate(raw_datasets):
+                labels = raw_set.get_labels()
+                mask = np.isin(labels, selected_classes)
+                if np.all(~mask):
+                    logging.error(
+                        f"No selected classes {selected_classes} in dataset {experiment_name}, set {raw_set_idx}"
+                    )
+                    raise ValueError(
+                        f"No selected classes {selected_classes} in dataset {experiment_name}, set {raw_set_idx}"
+                    )
+                raw_datasets[raw_set_idx] = raw_set[mask]
+
+            logging.debug("Selecting classes done")
+
 
         extractor = wavelet_extractor2()
 
@@ -946,18 +963,24 @@ def main():
 
     subjects = list([*range(1, 41)]) #ATTENTION
     experiments = list([*range(1, 4)])
+    selected_classes_list = [ #ATTENTION change if needed
+        None, 
+        None, 
+        None
+    ]
     labels = ["stimulus", "restimulus"]
 
     db_name = "db3"
     db_archive_path = os.path.join(settings.DATAPATH, f"{db_name}.zip") 
 
     data_sets = []
-    for experiment in experiments:
+    for experiment, selected_classes  in zip( experiments, selected_classes_list):
         for label in labels:
             data_sets.append(
                 (
                     f"exp_{experiment}_{label}",
                     db_archive_path,
+                    selected_classes,
                     [
                         f".*/S{su}_E{experiment}_A1_{label}/.*"
                         for su in subjects
