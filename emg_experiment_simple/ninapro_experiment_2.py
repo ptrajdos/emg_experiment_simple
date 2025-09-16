@@ -1,9 +1,8 @@
+from copy import deepcopy
 import datetime
 from enum import Enum
-import itertools
 import logging
 import os
-import string
 import warnings
 
 from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_kurtosis import (
@@ -12,7 +11,6 @@ from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors
 from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_skew import (
     NpSignalExtractorSkew,
 )
-from results_storage.results_storage import ResultsStorage
 from sklearn.multiclass import OutputCodeClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
@@ -20,10 +18,6 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
 from emg_experiment_simple.progressparallel import ProgressParallel
-from emg_experiment_simple.stats_tools import (
-    p_val_matrix_to_vec,
-    p_val_vec_to_matrix,
-)
 from sklearn.naive_bayes import GaussianNB
 import pandas as pd
 
@@ -40,7 +34,6 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
 )
-from statsmodels.stats.multitest import multipletests
 
 from dexterous_bioprosthesis_2021_raw_datasets.set_creators.set_creator_dwt import (
     SetCreatorDWT,
@@ -66,19 +59,16 @@ from sklearn.model_selection import (
     RepeatedStratifiedKFold,
 )
 from dexterous_bioprosthesis_2021_raw_datasets.raw_signals.raw_signals_io import (
-    read_signals_from_dirs,
     read_signals_from_archive,
 )
 
 
 from tqdm import tqdm
-import pickle
 from sklearn.metrics import accuracy_score
 
 from joblib import delayed
 
 
-from scipy.stats import wilcoxon
 import seaborn as sns
 
 
@@ -94,6 +84,14 @@ from emg_experiment_simple.xgb_classifier_label_enc import XGBClassifierWithLabe
 
 from matplotlib.backends.backend_pdf import PdfPages
 from imblearn.metrics import geometric_mean_score, specificity_score, sensitivity_score
+from dexterous_bioprosthesis_2021_raw_datasets.raw_signals_filters.raw_signals_filter_all_pass import (
+    RawSignalsFilterAllPass,
+)
+from dexterous_bioprosthesis_2021_raw_datasets.raw_signals_filters.raw_signals_filter_all_robuts_standarizer import RawSignalsFilterAllRobustStandarizer
+from dexterous_bioprosthesis_2021_raw_datasets.raw_signals_filters.raw_signals_filter_all_standarizer import (
+    RawSignalsFilterAllStandarizer,
+)
+
 
 class PlotConfigurer:
 
@@ -465,6 +463,14 @@ def generate_methods():
     }
     return methods
 
+def generate_filters():
+    filters = {
+        "NoFilter":RawSignalsFilterAllPass(),
+        "Stand":RawSignalsFilterAllStandarizer(),
+        "RobustStand":RawSignalsFilterAllRobustStandarizer(),
+
+    }
+    return filters
 
 class Dims(Enum):
     FOLDS = "folds"
@@ -475,7 +481,7 @@ def run_experiment(
     datasets,
     output_directory,
     random_state=0,
-    n_jobs=1,
+    n_jobs=-1,
     overwrite=True,
     n_channels=None,
     append=True,
@@ -565,39 +571,53 @@ def run_experiment(
 
         extractor = wavelet_extractor2()
 
-        extr_datasets_X = []
-        extr_datasets_y = []
         groups = []
+        extr_datasets_y = []
+        raw_datasets_concatenated = None
+        
         for raw_set_idx, raw_set in enumerate(raw_datasets):
             X, y, z = extractor.fit_transform(raw_set)
-            extr_datasets_X.append(X)
             extr_datasets_y.append(y)
             groups += [raw_set_idx] * len(y)
+            if raw_datasets_concatenated is None:
+                raw_datasets_concatenated = deepcopy(raw_set)
+            else:
+                raw_datasets_concatenated+=deepcopy(raw_set)
 
+
+
+
+        all_y = np.concatenate(extr_datasets_y)
         skf = LeaveOneGroupOut()
-        X_all = np.vstack(extr_datasets_X)
-        y_all = np.concatenate(extr_datasets_y)
 
         def compute(fold_idx, train_idx, test_idx):
 
-            X_train, X_test = X_all[train_idx], X_all[test_idx]
-            y_train, y_test = y_all[train_idx], y_all[test_idx]
-
             fold_res = []
 
-            for method_name in tqdm(
-                methods,
-                leave=False,
-                total=n_methods,
-                desc="Methods, Fold {}".format(fold_idx),
-            ):
+            raw_train = raw_datasets_concatenated[train_idx]
+            raw_test = raw_datasets_concatenated[test_idx]
 
-                method = methods[method_name]
+            for filter_name, filter in tqdm( generate_filters().items(), desc="Filters", leave=False):
+                raw_train_f = filter.fit_transform(raw_train)
+                raw_test_f = filter.transform(raw_test)
 
-                method.fit(X_train, y_train)
-                y_pred = method.predict(X_test)
+                X_train, y_train, _ = extractor.fit_transform(raw_train_f)
+                X_test, y_test, _ = extractor.transform(raw_test_f)    
+                
+                
+                for method_name in tqdm(
+                    methods,
+                    leave=False,
+                    total=n_methods,
+                    desc="Methods, Fold {}".format(fold_idx),
+                ):
 
-                fold_res.append((method_name, fold_idx, y_test, y_pred))
+                    method = methods[method_name]
+
+                    method.fit(X_train, y_train)
+                    y_pred = method.predict(X_test)
+
+                    fold_res.append((method_name,filter_name, fold_idx, y_test, y_pred))
             return fold_res
 
         results_list = ProgressParallel(
@@ -609,7 +629,7 @@ def run_experiment(
         )(
             delayed(compute)(fold_idx, train_idx, test_idx)
             for fold_idx, (train_idx, test_idx) in enumerate(
-                skf.split(X_all, y_all, groups=groups)
+                skf.split(all_y, all_y, groups=groups)
             )
         )
 
@@ -617,6 +637,7 @@ def run_experiment(
         for result_sublist in results_list:
             for (
                 method_name,
+                filter_name,
                 fold_idx,
                 y_test,
                 y_pred,
@@ -625,6 +646,7 @@ def run_experiment(
                     records.append(
                         {
                             Dims.METHODS.value: method_name,
+                            "Filter": filter_name,
                             Dims.FOLDS.value: fold_idx,
                             "y_test": y_test[y_idx],
                             "y_pred": y_pred[y_idx],
@@ -662,166 +684,168 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
             overall_df = pd.DataFrame()
             overall_cm = list()
             with PdfPages(method_spec_pdf_file_path) as method_pdf:
-                for method_name, g in results_df.groupby(Dims.METHODS.value):
-                    print(f"## {method_name}\n", file=all_res_file_handler)
-                    print(f"### Confusion matrix\n", file=all_res_file_handler)
-                    cm = confusion_matrix(g["y_test"], g["y_pred"])
-                    overall_cm.append(cm)
-                    u_labels = np.unique(np.hstack((g["y_test"], g["y_pred"])))
-                    cm_df = pd.DataFrame(cm, index=u_labels, columns=u_labels)
-                    cm_df.to_markdown(all_res_file_handler)
-                    print("\n", file=all_res_file_handler)
+                for filter_name, g_f in results_df.groupby("Filter"):
+                    print(f"## Filter: {filter_name}\n", file=all_res_file_handler)
+                    for method_name, g in results_df.groupby(Dims.METHODS.value):
+                        print(f"### {method_name}\n", file=all_res_file_handler)
+                        print(f"#### Confusion matrix\n", file=all_res_file_handler)
+                        cm = confusion_matrix(g["y_test"], g["y_pred"])
+                        overall_cm.append(cm)
+                        u_labels = np.unique(np.hstack((g["y_test"], g["y_pred"])))
+                        cm_df = pd.DataFrame(cm, index=u_labels, columns=u_labels)
+                        cm_df.to_markdown(all_res_file_handler)
+                        print("\n", file=all_res_file_handler)
 
-                    print(f"### classification report\n", file=all_res_file_handler)
-                    cr_dict = classification_report(
-                        g["y_test"], g["y_pred"], output_dict=True
-                    )
-                    cr_df = pd.DataFrame(cr_dict).transpose()
-                    class_rows = cr_df.iloc[:-3]  # assumes last 3 rows are avg metrics
+                        print(f"### classification report\n", file=all_res_file_handler)
+                        cr_dict = classification_report(
+                            g["y_test"], g["y_pred"], output_dict=True
+                        )
+                        cr_df = pd.DataFrame(cr_dict).transpose()
+                        class_rows = cr_df.iloc[:-3]  # assumes last 3 rows are avg metrics
 
-                    class_specificity = specificity_score(
-                        g["y_test"], g["y_pred"], average=None
-                    )
-                    class_sensitivity = sensitivity_score(
-                        g["y_test"], g["y_pred"], average=None
-                    )
+                        class_specificity = specificity_score(
+                            g["y_test"], g["y_pred"], average=None
+                        )
+                        class_sensitivity = sensitivity_score(
+                            g["y_test"], g["y_pred"], average=None
+                        )
 
-                    class_gmean = geometric_mean_score(
-                        g["y_test"], g["y_pred"], average=None
-                    )
-                    class_rows["sensitivity"] = class_sensitivity
-                    class_rows["specificity"] = class_specificity
-                    class_rows["g-mean"] = class_gmean
-                    class_rows["f1-g"] = np.sqrt(class_gmean * class_rows["f1-score"])
-                    f1_norm = normalised_f1_score(g["y_test"], g["y_pred"])
-                    class_rows["f1-norm"] = f1_norm
-                    class_kappa = class_specific_kappa(g["y_test"], g["y_pred"])
-                    class_rows["kappa"] = class_kappa
+                        class_gmean = geometric_mean_score(
+                            g["y_test"], g["y_pred"], average=None
+                        )
+                        class_rows["sensitivity"] = class_sensitivity
+                        class_rows["specificity"] = class_specificity
+                        class_rows["g-mean"] = class_gmean
+                        class_rows["f1-g"] = np.sqrt(class_gmean * class_rows["f1-score"])
+                        f1_norm = normalised_f1_score(g["y_test"], g["y_pred"])
+                        class_rows["f1-norm"] = f1_norm
+                        class_kappa = class_specific_kappa(g["y_test"], g["y_pred"])
+                        class_rows["kappa"] = class_kappa
 
-                    class_rows = class_rows[
-                        [
-                            "precision",
-                            "recall",
-                            "sensitivity",
-                            "specificity",
-                            "f1-score",
-                            "g-mean",
-                            "f1-g",
-                            "f1-norm",
-                            "support",
-                            "kappa",
+                        class_rows = class_rows[
+                            [
+                                "precision",
+                                "recall",
+                                "sensitivity",
+                                "specificity",
+                                "f1-score",
+                                "g-mean",
+                                "f1-g",
+                                "f1-norm",
+                                "support",
+                                "kappa",
+                            ]
                         ]
-                    ]
 
-                    overall_df[f"{method_name}-f1"] = class_rows["kappa"]
+                        overall_df[f"{method_name}-f1"] = class_rows["kappa"]
 
-                    crit_name = "f1-score"
-                    class_rows_sorted = class_rows.sort_values(
-                        crit_name, ascending=False
-                    )
-                    class_rows_sorted.to_markdown(all_res_file_handler)
-                    print("\n", file=all_res_file_handler)
-                    # TODO visualization of f1 ang g-mean
-                    plt.plot(class_rows_sorted[crit_name], label=crit_name)
-                    plt.plot(
-                        class_rows_sorted["precision"], label="precision", alpha=0.3
-                    )
-                    plt.plot(class_rows_sorted["recall"], label="recall", alpha=0.3)
-                    cumsums = np.cumsum(class_rows_sorted[crit_name])
-                    cumcounts = np.arange(1, len(cumsums) + 1)
-                    cum_mean = cumsums / cumcounts
-                    plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
-                    plt.grid(
-                        True, color="grey", linestyle="--", linewidth=0.7, axis="both"
-                    )
-                    plt.legend()
-                    plt.title(f"{method_name}, {crit_name}")
-                    plt.xlabel("Label")
-                    plt.ylabel("Criterion value")
-                    method_pdf.savefig()
-                    plt.close()
+                        crit_name = "f1-score"
+                        class_rows_sorted = class_rows.sort_values(
+                            crit_name, ascending=False
+                        )
+                        class_rows_sorted.to_markdown(all_res_file_handler)
+                        print("\n", file=all_res_file_handler)
+                        # TODO visualization of f1 ang g-mean
+                        plt.plot(class_rows_sorted[crit_name], label=crit_name)
+                        plt.plot(
+                            class_rows_sorted["precision"], label="precision", alpha=0.3
+                        )
+                        plt.plot(class_rows_sorted["recall"], label="recall", alpha=0.3)
+                        cumsums = np.cumsum(class_rows_sorted[crit_name])
+                        cumcounts = np.arange(1, len(cumsums) + 1)
+                        cum_mean = cumsums / cumcounts
+                        plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
+                        plt.grid(
+                            True, color="grey", linestyle="--", linewidth=0.7, axis="both"
+                        )
+                        plt.legend()
+                        plt.title(f"{filter_name},{method_name}, {crit_name}")
+                        plt.xlabel("Label")
+                        plt.ylabel("Criterion value")
+                        method_pdf.savefig()
+                        plt.close()
 
-                    crit_name = "g-mean"
-                    class_rows_sorted = class_rows.sort_values(
-                        crit_name, ascending=False
-                    )
-                    plt.plot(class_rows_sorted[crit_name], label=crit_name)
-                    plt.plot(
-                        class_rows_sorted["sensitivity"], label="sensitivity", alpha=0.3
-                    )
-                    plt.plot(
-                        class_rows_sorted["specificity"], label="specificity", alpha=0.3
-                    )
-                    cumsums = np.cumsum(class_rows_sorted[crit_name])
-                    cumcounts = np.arange(1, len(cumsums) + 1)
-                    cum_mean = cumsums / cumcounts
-                    plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
-                    plt.grid(
-                        True, color="grey", linestyle="--", linewidth=0.7, axis="both"
-                    )
-                    plt.legend()
-                    plt.title(f"{method_name}, {crit_name}")
-                    plt.xlabel("Label")
-                    plt.ylabel("Criterion value")
-                    method_pdf.savefig()
-                    plt.close()
+                        crit_name = "g-mean"
+                        class_rows_sorted = class_rows.sort_values(
+                            crit_name, ascending=False
+                        )
+                        plt.plot(class_rows_sorted[crit_name], label=crit_name)
+                        plt.plot(
+                            class_rows_sorted["sensitivity"], label="sensitivity", alpha=0.3
+                        )
+                        plt.plot(
+                            class_rows_sorted["specificity"], label="specificity", alpha=0.3
+                        )
+                        cumsums = np.cumsum(class_rows_sorted[crit_name])
+                        cumcounts = np.arange(1, len(cumsums) + 1)
+                        cum_mean = cumsums / cumcounts
+                        plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
+                        plt.grid(
+                            True, color="grey", linestyle="--", linewidth=0.7, axis="both"
+                        )
+                        plt.legend()
+                        plt.title(f"{filter_name},{method_name}, {crit_name}")
+                        plt.xlabel("Label")
+                        plt.ylabel("Criterion value")
+                        method_pdf.savefig()
+                        plt.close()
 
-                    crit_name = "f1-g"
-                    class_rows_sorted = class_rows.sort_values(
-                        crit_name, ascending=False
-                    )
-                    plt.plot(class_rows_sorted[crit_name], label=crit_name)
-                    cumsums = np.cumsum(class_rows_sorted[crit_name])
-                    cumcounts = np.arange(1, len(cumsums) + 1)
-                    cum_mean = cumsums / cumcounts
-                    plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
-                    plt.grid(
-                        True, color="grey", linestyle="--", linewidth=0.7, axis="both"
-                    )
-                    plt.legend()
-                    plt.title(f"{method_name}, {crit_name}")
-                    plt.xlabel("Label")
-                    plt.ylabel("Criterion value")
-                    method_pdf.savefig()
-                    plt.close()
+                        crit_name = "f1-g"
+                        class_rows_sorted = class_rows.sort_values(
+                            crit_name, ascending=False
+                        )
+                        plt.plot(class_rows_sorted[crit_name], label=crit_name)
+                        cumsums = np.cumsum(class_rows_sorted[crit_name])
+                        cumcounts = np.arange(1, len(cumsums) + 1)
+                        cum_mean = cumsums / cumcounts
+                        plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
+                        plt.grid(
+                            True, color="grey", linestyle="--", linewidth=0.7, axis="both"
+                        )
+                        plt.legend()
+                        plt.title(f"{filter_name},{method_name}, {crit_name}")
+                        plt.xlabel("Label")
+                        plt.ylabel("Criterion value")
+                        method_pdf.savefig()
+                        plt.close()
 
-                    crit_name = "f1-norm"
-                    class_rows_sorted = class_rows.sort_values(
-                        crit_name, ascending=False
-                    )
-                    plt.plot(class_rows_sorted[crit_name], label=crit_name)
-                    cumsums = np.cumsum(class_rows_sorted[crit_name])
-                    cumcounts = np.arange(1, len(cumsums) + 1)
-                    cum_mean = cumsums / cumcounts
-                    plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
-                    plt.grid(
-                        True, color="grey", linestyle="--", linewidth=0.7, axis="both"
-                    )
-                    plt.legend()
-                    plt.title(f"{method_name}, {crit_name}")
-                    plt.xlabel("Label")
-                    plt.ylabel("Criterion value")
-                    method_pdf.savefig()
-                    plt.close()
+                        crit_name = "f1-norm"
+                        class_rows_sorted = class_rows.sort_values(
+                            crit_name, ascending=False
+                        )
+                        plt.plot(class_rows_sorted[crit_name], label=crit_name)
+                        cumsums = np.cumsum(class_rows_sorted[crit_name])
+                        cumcounts = np.arange(1, len(cumsums) + 1)
+                        cum_mean = cumsums / cumcounts
+                        plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
+                        plt.grid(
+                            True, color="grey", linestyle="--", linewidth=0.7, axis="both"
+                        )
+                        plt.legend()
+                        plt.title(f"{filter_name},{method_name}, {crit_name}")
+                        plt.xlabel("Label")
+                        plt.ylabel("Criterion value")
+                        method_pdf.savefig()
+                        plt.close()
 
-                    crit_name = "kappa"
-                    class_rows_sorted = class_rows.sort_values(
-                        crit_name, ascending=False
-                    )
-                    plt.plot(class_rows_sorted[crit_name], label=crit_name)
-                    cumsums = np.cumsum(class_rows_sorted[crit_name])
-                    cumcounts = np.arange(1, len(cumsums) + 1)
-                    cum_mean = cumsums / cumcounts
-                    plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
-                    plt.grid(
-                        True, color="grey", linestyle="--", linewidth=0.7, axis="both"
-                    )
-                    plt.legend()
-                    plt.title(f"{method_name}, {crit_name}")
-                    plt.xlabel("Label")
-                    plt.ylabel("Criterion value")
-                    method_pdf.savefig()
-                    plt.close()
+                        crit_name = "kappa"
+                        class_rows_sorted = class_rows.sort_values(
+                            crit_name, ascending=False
+                        )
+                        plt.plot(class_rows_sorted[crit_name], label=crit_name)
+                        cumsums = np.cumsum(class_rows_sorted[crit_name])
+                        cumcounts = np.arange(1, len(cumsums) + 1)
+                        cum_mean = cumsums / cumcounts
+                        plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
+                        plt.grid(
+                            True, color="grey", linestyle="--", linewidth=0.7, axis="both"
+                        )
+                        plt.legend()
+                        plt.title(f"{filter_name},{method_name}, {crit_name}")
+                        plt.xlabel("Label")
+                        plt.ylabel("Criterion value")
+                        method_pdf.savefig()
+                        plt.close()
 
             with PdfPages(all_res_pdf_file_path) as pdf:
                 print("# Overall CM", file=all_res_file_handler)
@@ -1010,7 +1034,7 @@ def main():
         random_state=0,
         n_jobs=-1,
         overwrite=True,
-        n_channels=12,
+        n_channels=8, #12 channels total, 8 around the forearm
         progress_log_handler=progress_log_handler,
         comment_str=comment_str,
     )
