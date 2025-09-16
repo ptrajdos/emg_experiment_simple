@@ -686,7 +686,7 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
             with PdfPages(method_spec_pdf_file_path) as method_pdf:
                 for filter_name, g_f in results_df.groupby("Filter"):
                     print(f"## Filter: {filter_name}\n", file=all_res_file_handler)
-                    for method_name, g in results_df.groupby(Dims.METHODS.value):
+                    for method_name, g in g_f.groupby(Dims.METHODS.value):
                         print(f"### {method_name}\n", file=all_res_file_handler)
                         print(f"#### Confusion matrix\n", file=all_res_file_handler)
                         cm = confusion_matrix(g["y_test"], g["y_pred"])
@@ -790,43 +790,43 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                         method_pdf.savefig()
                         plt.close()
 
-                        crit_name = "f1-g"
-                        class_rows_sorted = class_rows.sort_values(
-                            crit_name, ascending=False
-                        )
-                        plt.plot(class_rows_sorted[crit_name], label=crit_name)
-                        cumsums = np.cumsum(class_rows_sorted[crit_name])
-                        cumcounts = np.arange(1, len(cumsums) + 1)
-                        cum_mean = cumsums / cumcounts
-                        plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
-                        plt.grid(
-                            True, color="grey", linestyle="--", linewidth=0.7, axis="both"
-                        )
-                        plt.legend()
-                        plt.title(f"{filter_name},{method_name}, {crit_name}")
-                        plt.xlabel("Label")
-                        plt.ylabel("Criterion value")
-                        method_pdf.savefig()
-                        plt.close()
+                        # crit_name = "f1-g"
+                        # class_rows_sorted = class_rows.sort_values(
+                        #     crit_name, ascending=False
+                        # )
+                        # plt.plot(class_rows_sorted[crit_name], label=crit_name)
+                        # cumsums = np.cumsum(class_rows_sorted[crit_name])
+                        # cumcounts = np.arange(1, len(cumsums) + 1)
+                        # cum_mean = cumsums / cumcounts
+                        # plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
+                        # plt.grid(
+                        #     True, color="grey", linestyle="--", linewidth=0.7, axis="both"
+                        # )
+                        # plt.legend()
+                        # plt.title(f"{filter_name},{method_name}, {crit_name}")
+                        # plt.xlabel("Label")
+                        # plt.ylabel("Criterion value")
+                        # method_pdf.savefig()
+                        # plt.close()
 
-                        crit_name = "f1-norm"
-                        class_rows_sorted = class_rows.sort_values(
-                            crit_name, ascending=False
-                        )
-                        plt.plot(class_rows_sorted[crit_name], label=crit_name)
-                        cumsums = np.cumsum(class_rows_sorted[crit_name])
-                        cumcounts = np.arange(1, len(cumsums) + 1)
-                        cum_mean = cumsums / cumcounts
-                        plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
-                        plt.grid(
-                            True, color="grey", linestyle="--", linewidth=0.7, axis="both"
-                        )
-                        plt.legend()
-                        plt.title(f"{filter_name},{method_name}, {crit_name}")
-                        plt.xlabel("Label")
-                        plt.ylabel("Criterion value")
-                        method_pdf.savefig()
-                        plt.close()
+                        # crit_name = "f1-norm"
+                        # class_rows_sorted = class_rows.sort_values(
+                        #     crit_name, ascending=False
+                        # )
+                        # plt.plot(class_rows_sorted[crit_name], label=crit_name)
+                        # cumsums = np.cumsum(class_rows_sorted[crit_name])
+                        # cumcounts = np.arange(1, len(cumsums) + 1)
+                        # cum_mean = cumsums / cumcounts
+                        # plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
+                        # plt.grid(
+                        #     True, color="grey", linestyle="--", linewidth=0.7, axis="both"
+                        # )
+                        # plt.legend()
+                        # plt.title(f"{filter_name},{method_name}, {crit_name}")
+                        # plt.xlabel("Label")
+                        # plt.ylabel("Criterion value")
+                        # method_pdf.savefig()
+                        # plt.close()
 
                         crit_name = "kappa"
                         class_rows_sorted = class_rows.sort_values(
