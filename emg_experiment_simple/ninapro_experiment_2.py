@@ -44,9 +44,27 @@ from dexterous_bioprosthesis_2021_raw_datasets.raw_signals_filters.raw_signals_f
 from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_mav import (
     NpSignalExtractorMav,
 )
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_var import (
+    NpSignalExtractorVar,
+)
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_rms import (
+    NpSignalExtractorRms,
+)
+
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_mobility import (
+    NpSignalExtractorMobility,
+)
+
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_complexity import (
+    NpSignalExtractorComplexity,
+)
 
 from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_ssc import (
     NpSignalExtractorSsc,
+)
+
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_higuchi_fd2 import (
+    NpSignalExtractorHiguchiFD2
 )
 
 
@@ -87,7 +105,9 @@ from imblearn.metrics import geometric_mean_score, specificity_score, sensitivit
 from dexterous_bioprosthesis_2021_raw_datasets.raw_signals_filters.raw_signals_filter_all_pass import (
     RawSignalsFilterAllPass,
 )
-from dexterous_bioprosthesis_2021_raw_datasets.raw_signals_filters.raw_signals_filter_all_robuts_standarizer import RawSignalsFilterAllRobustStandarizer
+from dexterous_bioprosthesis_2021_raw_datasets.raw_signals_filters.raw_signals_filter_all_robuts_standarizer import (
+    RawSignalsFilterAllRobustStandarizer,
+)
 from dexterous_bioprosthesis_2021_raw_datasets.raw_signals_filters.raw_signals_filter_all_standarizer import (
     RawSignalsFilterAllStandarizer,
 )
@@ -152,16 +172,17 @@ class PlotConfigurer:
 configurer = PlotConfigurer()
 
 
-def wavelet_extractor2(wavelet_level=2):
+def wavelet_extractor2(wavelet_level=3):
     extractor = SetCreatorDWT(
         num_levels=wavelet_level,
         wavelet_name="db6",
         extractors=[
-            NpSignalExtractorMav(),
-            NpSignalExtractorSsc(),
+            NpSignalExtractorVar(),
             NpSignalExtractorKurtosis(),
-            NpSignalExtractorSkew(),
-        ],
+            NpSignalExtractorMobility(),
+            NpSignalExtractorComplexity(),
+            NpSignalExtractorHiguchiFD2(),
+        ]
     )
     return extractor
 
@@ -169,7 +190,7 @@ def wavelet_extractor2(wavelet_level=2):
 def create_extractors():
 
     extractors_dict = {
-        "DWT": wavelet_extractor2(),
+        "DWT": wavelet_extractor2(wavelet_level=3),
     }
 
     return extractors_dict
@@ -206,6 +227,7 @@ def precision_score_m(y_true, y_pred, labels=None, average=None, zero_division=N
 def recall_score_m(y_true, y_pred, labels=None, average=None, zero_division=None):
     return recall_score(y_true, y_pred, average="micro")
 
+
 def geometric_mean_score_m(y_true, y_pred):
     return geometric_mean_score(y_true, y_pred, average="micro", pos_label=None)
 
@@ -235,11 +257,11 @@ def generate_random_forest_t():
     classifier_dict = {
         "classifier_object": RandomForestClassifier(n_estimators=100, random_state=0),
         "params": {
-            "max_depth": [3,5,10,None],
-            "min_samples_split": [2,5,10],
-            "min_samples_leaf": [1,2,4],
-            "max_features": ['sqrt', 'log2',None],
-            "max_samples": [0.1, 0.2, 0.4,0.5,None],
+            "max_depth": [3, 5, 10, None],
+            "min_samples_split": [2, 5, 10],
+            "min_samples_leaf": [1, 2, 4],
+            "max_features": ["sqrt", "log2", None],
+            "max_samples": [0.1, 0.2, 0.4, 0.5, None],
         },
     }
 
@@ -259,12 +281,13 @@ def generate_random_forest_t():
         error_score="raise",
     )
     return clf
+
 
 def generate_knn_t():
     classifier_dict = {
         "classifier_object": KNeighborsClassifier(),
         "params": {
-            "n_neighbors": list(range(1,27,2)),# ATTENTION to 27
+            "n_neighbors": list(range(1, 27, 2)),  # ATTENTION to 27
         },
     }
 
@@ -284,10 +307,13 @@ def generate_knn_t():
         error_score="raise",
     )
     return clf
+
 
 def generate_SVC_linear_t():
     classifier_dict = {
-        "classifier_object": SVC(kernel="linear", random_state=0, decision_function_shape="ovo"),
+        "classifier_object": SVC(
+            kernel="linear", random_state=0, decision_function_shape="ovo"
+        ),
         "params": {
             "C": [0.001, 0.01, 0.1, 1, 10, 100],
         },
@@ -309,13 +335,16 @@ def generate_SVC_linear_t():
         error_score="raise",
     )
     return clf
+
 
 def generate_SVC_rbf_t():
     classifier_dict = {
-        "classifier_object": SVC(kernel="rbf", random_state=0, decision_function_shape="ovo"),
+        "classifier_object": SVC(
+            kernel="rbf", random_state=0, decision_function_shape="ovo"
+        ),
         "params": {
             "C": [0.001, 0.01, 0.1, 1, 10, 100],
-            "gamma": ['scale', 'auto', 0.001, 0.01, 0.1, 1, 10, 100]
+            "gamma": ["scale", "auto", 0.001, 0.01, 0.1, 1, 10, 100],
         },
     }
 
@@ -335,6 +364,7 @@ def generate_SVC_rbf_t():
         error_score="raise",
     )
     return clf
+
 
 def generate_xgboost_t():
     classifier_dict = {
@@ -343,7 +373,7 @@ def generate_xgboost_t():
         ),
         "params": {
             "n_estimators": [100],
-            "max_depth": [3,5,None],
+            "max_depth": [3, 5, None],
             "learning_rate": np.linspace(0.05, 0.5, 5),
             "subsample": np.linspace(0.4, 0.8, 3),
             "colsample_bytree": np.linspace(0.1, 0.3, 3),
@@ -374,7 +404,7 @@ def generate_ecoc_xgb_t():
 
     params = {
         "estimator__code_size": [2, 3],
-        "estimator__estimator__max_depth": [3,5,None],
+        "estimator__estimator__max_depth": [3, 5, None],
         "estimator__estimator__learning_rate": np.linspace(0.05, 0.2, 3),
         "estimator__estimator__subsample": np.linspace(0.4, 0.8, 3),
         "estimator__estimator__colsample_bytree": np.linspace(0.1, 0.3, 3),
@@ -415,11 +445,11 @@ def generate_ecoc_rf_t():
 
     params = {
         "estimator__code_size": [2, 3],
-        "estimator__estimator__max_depth": [3,5,10,None],
-        "estimator__estimator__min_samples_split": [2,5,10],
-        "estimator__estimator__min_samples_leaf": [1,2,4],
-        "estimator__estimator__max_features": ['sqrt', 'log2',None],
-        "estimator__estimator__max_samples": [0.1, 0.2, 0.4,0.5,None],
+        "estimator__estimator__max_depth": [3, 5, 10, None],
+        "estimator__estimator__min_samples_split": [2, 5, 10],
+        "estimator__estimator__min_samples_leaf": [1, 2, 4],
+        "estimator__estimator__max_features": ["sqrt", "log2", None],
+        "estimator__estimator__max_samples": [0.1, 0.2, 0.4, 0.5, None],
     }
 
     pipeline = Pipeline(
@@ -463,14 +493,15 @@ def generate_methods():
     }
     return methods
 
+
 def generate_filters():
     filters = {
-        "NoFilter":RawSignalsFilterAllPass(),
-        "Stand":RawSignalsFilterAllStandarizer(),
-        "RobustStand":RawSignalsFilterAllRobustStandarizer(),
-
+        # "NoFilter": RawSignalsFilterAllPass(),
+        "Stand": RawSignalsFilterAllStandarizer(),
+        # "RobustStand":RawSignalsFilterAllRobustStandarizer(),
     }
     return filters
+
 
 class Dims(Enum):
     FOLDS = "folds"
@@ -529,10 +560,12 @@ def run_experiment(
         logging.debug(f"Loading data for experiment {experiment_name}")
         raw_datasets = list()
         for input_regex in input_data_regexes:
-            raw_data = read_signals_from_archive(archive_path, filter_regex=input_regex)["accepted"]
+            raw_data = read_signals_from_archive(
+                archive_path, filter_regex=input_regex
+            )["accepted"]
             if len(raw_data) > 0:
                 raw_datasets.append(raw_data)
-            
+
         n_raw_datasets = len(raw_datasets)
         logging.debug(
             f"Loaded {n_raw_datasets} datasets for experiment {experiment_name}"
@@ -568,13 +601,12 @@ def run_experiment(
 
             logging.debug("Selecting classes done")
 
-
         extractor = wavelet_extractor2()
 
         groups = []
         extr_datasets_y = []
         raw_datasets_concatenated = None
-        
+
         for raw_set_idx, raw_set in enumerate(raw_datasets):
             X, y, z = extractor.fit_transform(raw_set)
             extr_datasets_y.append(y)
@@ -582,10 +614,7 @@ def run_experiment(
             if raw_datasets_concatenated is None:
                 raw_datasets_concatenated = deepcopy(raw_set)
             else:
-                raw_datasets_concatenated+=deepcopy(raw_set)
-
-
-
+                raw_datasets_concatenated += deepcopy(raw_set)
 
         all_y = np.concatenate(extr_datasets_y)
         skf = LeaveOneGroupOut()
@@ -597,14 +626,15 @@ def run_experiment(
             raw_train = raw_datasets_concatenated[train_idx]
             raw_test = raw_datasets_concatenated[test_idx]
 
-            for filter_name, filter in tqdm( generate_filters().items(), desc="Filters", leave=False):
+            for filter_name, filter in tqdm(
+                generate_filters().items(), desc="Filters", leave=False
+            ):
                 raw_train_f = filter.fit_transform(raw_train)
                 raw_test_f = filter.transform(raw_test)
 
                 X_train, y_train, _ = extractor.fit_transform(raw_train_f)
-                X_test, y_test, _ = extractor.transform(raw_test_f)    
-                
-                
+                X_test, y_test, _ = extractor.transform(raw_test_f)
+
                 for method_name in tqdm(
                     methods,
                     leave=False,
@@ -617,7 +647,9 @@ def run_experiment(
                     method.fit(X_train, y_train)
                     y_pred = method.predict(X_test)
 
-                    fold_res.append((method_name,filter_name, fold_idx, y_test, y_pred))
+                    fold_res.append(
+                        (method_name, filter_name, fold_idx, y_test, y_pred)
+                    )
             return fold_res
 
         results_list = ProgressParallel(
@@ -701,7 +733,9 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                             g["y_test"], g["y_pred"], output_dict=True
                         )
                         cr_df = pd.DataFrame(cr_dict).transpose()
-                        class_rows = cr_df.iloc[:-3]  # assumes last 3 rows are avg metrics
+                        class_rows = cr_df.iloc[
+                            :-3
+                        ]  # assumes last 3 rows are avg metrics
 
                         class_specificity = specificity_score(
                             g["y_test"], g["y_pred"], average=None
@@ -716,7 +750,9 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                         class_rows["sensitivity"] = class_sensitivity
                         class_rows["specificity"] = class_specificity
                         class_rows["g-mean"] = class_gmean
-                        class_rows["f1-g"] = np.sqrt(class_gmean * class_rows["f1-score"])
+                        class_rows["f1-g"] = np.sqrt(
+                            class_gmean * class_rows["f1-score"]
+                        )
                         f1_norm = normalised_f1_score(g["y_test"], g["y_pred"])
                         class_rows["f1-norm"] = f1_norm
                         class_kappa = class_specific_kappa(g["y_test"], g["y_pred"])
@@ -754,9 +790,15 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                         cumsums = np.cumsum(class_rows_sorted[crit_name])
                         cumcounts = np.arange(1, len(cumsums) + 1)
                         cum_mean = cumsums / cumcounts
-                        plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
+                        plt.plot(
+                            cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5
+                        )
                         plt.grid(
-                            True, color="grey", linestyle="--", linewidth=0.7, axis="both"
+                            True,
+                            color="grey",
+                            linestyle="--",
+                            linewidth=0.7,
+                            axis="both",
                         )
                         plt.legend()
                         plt.title(f"{filter_name},{method_name}, {crit_name}")
@@ -771,17 +813,27 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                         )
                         plt.plot(class_rows_sorted[crit_name], label=crit_name)
                         plt.plot(
-                            class_rows_sorted["sensitivity"], label="sensitivity", alpha=0.3
+                            class_rows_sorted["sensitivity"],
+                            label="sensitivity",
+                            alpha=0.3,
                         )
                         plt.plot(
-                            class_rows_sorted["specificity"], label="specificity", alpha=0.3
+                            class_rows_sorted["specificity"],
+                            label="specificity",
+                            alpha=0.3,
                         )
                         cumsums = np.cumsum(class_rows_sorted[crit_name])
                         cumcounts = np.arange(1, len(cumsums) + 1)
                         cum_mean = cumsums / cumcounts
-                        plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
+                        plt.plot(
+                            cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5
+                        )
                         plt.grid(
-                            True, color="grey", linestyle="--", linewidth=0.7, axis="both"
+                            True,
+                            color="grey",
+                            linestyle="--",
+                            linewidth=0.7,
+                            axis="both",
                         )
                         plt.legend()
                         plt.title(f"{filter_name},{method_name}, {crit_name}")
@@ -836,9 +888,15 @@ def analyze_results(results_directory, output_directory, alpha=0.05):
                         cumsums = np.cumsum(class_rows_sorted[crit_name])
                         cumcounts = np.arange(1, len(cumsums) + 1)
                         cum_mean = cumsums / cumcounts
-                        plt.plot(cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5)
+                        plt.plot(
+                            cum_mean, label=f"{crit_name}: cumulative mean", alpha=0.5
+                        )
                         plt.grid(
-                            True, color="grey", linestyle="--", linewidth=0.7, axis="both"
+                            True,
+                            color="grey",
+                            linestyle="--",
+                            linewidth=0.7,
+                            axis="both",
                         )
                         plt.legend()
                         plt.title(f"{filter_name},{method_name}, {crit_name}")
@@ -985,30 +1043,27 @@ def main():
     np.random.seed(0)
     random.seed(0)
 
-    subjects = list([*range(1, 41)]) #ATTENTION
+    subjects = list([*range(1, 41)])  # ATTENTION
     experiments = list([*range(1, 4)])
-    selected_classes_list = [ #ATTENTION change if needed
-        ["9","13","16","6","1","14","7"],
-        ["39","36","34","40"], 
-        ["48","46"]
+    selected_classes_list = [  # ATTENTION change if needed
+        ["9", "13", "16", "6", "1", "14", "7"],
+        ["39", "36", "34", "40"],
+        ["48", "46"],
     ]
     labels = ["stimulus", "restimulus"]
 
     db_name = "db3"
-    db_archive_path = os.path.join(settings.DATAPATH, f"{db_name}.zip") 
+    db_archive_path = os.path.join(settings.DATAPATH, f"{db_name}.zip")
 
     data_sets = []
-    for experiment, selected_classes  in zip( experiments, selected_classes_list):
+    for experiment, selected_classes in zip(experiments, selected_classes_list):
         for label in labels:
             data_sets.append(
                 (
                     f"exp_{experiment}_{label}",
                     db_archive_path,
                     selected_classes,
-                    [
-                        f".*/S{su}_E{experiment}_A1_{label}/.*"
-                        for su in subjects
-                    ],
+                    [f".*/S{su}_E{experiment}_A1_{label}/.*" for su in subjects],
                 )
             )
 
@@ -1034,7 +1089,7 @@ def main():
         random_state=0,
         n_jobs=-1,
         overwrite=True,
-        n_channels=8, #12 channels total, 8 around the forearm
+        n_channels=12,  # 12 channels total, 8 around the forearm
         progress_log_handler=progress_log_handler,
         comment_str=comment_str,
     )
