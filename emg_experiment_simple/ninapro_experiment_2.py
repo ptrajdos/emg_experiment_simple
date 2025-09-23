@@ -66,7 +66,17 @@ from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors
 from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_higuchi_fd2 import (
     NpSignalExtractorHiguchiFD2
 )
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_temporal_moment import (
+    NpSignalExtractorTemporalMoment,
+)
 
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_temporal_kurtosis import (
+    NpSignalExtractorTemporalKurtosis
+)
+
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_temporal_skew import (
+    NpSignalExtractorTemporalSkew
+)
 
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
@@ -182,6 +192,10 @@ def wavelet_extractor2(wavelet_level=3):
             NpSignalExtractorMobility(),
             NpSignalExtractorComplexity(),
             NpSignalExtractorHiguchiFD2(),
+            NpSignalExtractorTemporalMoment(order=1),
+            NpSignalExtractorTemporalMoment(order=2),
+            NpSignalExtractorTemporalSkew(),
+            NpSignalExtractorTemporalKurtosis(),
         ]
     )
     return extractor
@@ -1082,6 +1096,7 @@ def main():
 
     comment_str = """
     Simple experiment.
+    Temporal features added. 
     """
     run_experiment(
         data_sets,
