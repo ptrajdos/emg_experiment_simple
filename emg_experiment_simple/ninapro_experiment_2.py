@@ -38,6 +38,9 @@ from sklearn.metrics import (
 from dexterous_bioprosthesis_2021_raw_datasets.set_creators.set_creator_dwt import (
     SetCreatorDWT,
 )
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.set_creator_swt import (
+    SetCreatorSWT,
+)
 from dexterous_bioprosthesis_2021_raw_datasets.raw_signals_filters.raw_signals_filter_channel_idx import (
     RawSignalsFilterChannelIdx,
 )
@@ -182,7 +185,7 @@ class PlotConfigurer:
 configurer = PlotConfigurer()
 
 
-def wavelet_extractor2(wavelet_level=3):
+def wavelet_extractor2_DWT(wavelet_level=3):
     extractor = SetCreatorDWT(
         num_levels=wavelet_level,
         wavelet_name="db6",
@@ -200,11 +203,29 @@ def wavelet_extractor2(wavelet_level=3):
     )
     return extractor
 
+def wavelet_extractor2_SWT(wavelet_level=3):
+    extractor = SetCreatorSWT(
+        num_levels=wavelet_level,
+        wavelet_name="db6",
+        extractors=[
+            NpSignalExtractorVar(),
+            NpSignalExtractorKurtosis(),
+            NpSignalExtractorMobility(),
+            NpSignalExtractorComplexity(),
+            NpSignalExtractorHiguchiFD2(),
+            NpSignalExtractorTemporalMoment(order=1),
+            NpSignalExtractorTemporalMoment(order=2),
+            NpSignalExtractorTemporalSkew(),
+            NpSignalExtractorTemporalKurtosis(),
+        ]
+    )
+    return extractor
 
 def create_extractors():
 
     extractors_dict = {
-        "DWT": wavelet_extractor2(wavelet_level=3),
+        # "DWT": wavelet_extractor2_DWT(wavelet_level=3),
+        "SWT": wavelet_extractor2_SWT(wavelet_level=3),
     }
 
     return extractors_dict
@@ -615,7 +636,7 @@ def run_experiment(
 
             logging.debug("Selecting classes done")
 
-        extractor = wavelet_extractor2()
+        extractor = wavelet_extractor2_SWT()
 
         groups = []
         extr_datasets_y = []
@@ -1096,7 +1117,8 @@ def main():
 
     comment_str = """
     Simple experiment.
-    Temporal features added. 
+    Temporal features added.
+    SWT used as extractor. 
     """
     run_experiment(
         data_sets,
