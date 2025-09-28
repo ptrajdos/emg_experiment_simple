@@ -636,7 +636,7 @@ def run_experiment(
 
             logging.debug("Selecting classes done")
 
-        extractor = wavelet_extractor2_SWT()
+        extractor = wavelet_extractor2_SWT(wavelet_level=4)
 
         groups = []
         extr_datasets_y = []
@@ -1118,7 +1118,7 @@ def main():
     comment_str = """
     Simple experiment.
     Temporal features added.
-    SWT used as extractor. 
+    SWT used as extractor. Wavelet level 4.
     """
     run_experiment(
         data_sets,
