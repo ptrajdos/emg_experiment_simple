@@ -81,6 +81,9 @@ from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors
     NpSignalExtractorTemporalSkew
 )
 
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_spectral_moment import NpSignalExtractorSpectralMoment
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_spectral_skew import NpSignalExtractorSpectralSkew
+from dexterous_bioprosthesis_2021_raw_datasets.set_creators.np_signal_extractors.np_signal_extractor_spectral_kurtosis import NpSignalExtractorSpectralKurtosis
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 
@@ -217,6 +220,10 @@ def wavelet_extractor2_SWT(wavelet_level=3):
             NpSignalExtractorTemporalMoment(order=2),
             NpSignalExtractorTemporalSkew(),
             NpSignalExtractorTemporalKurtosis(),
+            NpSignalExtractorSpectralMoment(order=1),
+            NpSignalExtractorSpectralMoment(order=2),
+            NpSignalExtractorSpectralSkew(),
+            NpSignalExtractorSpectralKurtosis(),
         ]
     )
     return extractor
@@ -1118,7 +1125,8 @@ def main():
     comment_str = """
     Simple experiment.
     Temporal features added.
-    SWT used as extractor. Wavelet level 4.
+    SWT used as extractor. Wavelet level 4. db6 wavelet.
+    Spectral features
     """
     run_experiment(
         data_sets,
